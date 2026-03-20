@@ -3,7 +3,7 @@
 
 import { useState } from 'react'; // useState : 컴포넌트 내부 상태를 관리하는 React 훅
 import { useNavigate, Link } from 'react-router-dom'; // useNavigate : 페이지 이동 훅, Link : SPA 링크 컴포넌트
-import { register } from '../api/authApi.js'; // 회원가입 API 통신 함수를 불러옴
+import { register } from '../../api/authApi.js'; // 회원가입 API 통신 함수를 불러옴
 import './AuthPage.css'; // 로그인·회원가입 페이지 공통 CSS 스타일
 
 // SignupPage 컴포넌트 — 회원가입 화면 전체를 담당

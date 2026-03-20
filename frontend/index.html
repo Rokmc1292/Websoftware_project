@@ -1,15 +1,23 @@
 <!DOCTYPE html>
+<!-- HTML5 문서 선언 — 브라우저에게 "이 파일은 최신 HTML 형식입니다"라고 알려줌 -->
 <html lang="ko">
-  <head>
-    <meta charset="UTF-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>No Sweat, No Sweet</title>
-  </head>
+<!-- lang="ko" : 이 페이지가 한국어 문서임을 브라우저와 검색엔진에 알려줌 -->
+<head>
+  <meta charset="UTF-8" />
+  <!-- UTF-8 인코딩 설정 — 한글, 이모지 등 다양한 문자를 깨지지 않게 표시 -->
 
-  <body>
-    <div id="root"></div>
-    <!-- react가 이 div 태그안에 렌더링됨 main.jsx에서 찾아서-->
-     <script type="module" src="/src/main.jsx"></script>
-     <!---react의 시작파일을 불러오기 -->
-  </body>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- 모바일 반응형 설정 — 화면 너비를 기기 너비에 맞추고 초기 배율을 1.0으로 설정 -->
+
+  <title>No Sweat, No Sweet — 건강관리 앱</title>
+  <!-- 브라우저 탭에 표시되는 페이지 제목 -->
+</head>
+<body>
+  <div id="root"></div>
+  <!-- React 앱이 이 div 안에 통째로 렌더링됨 — main.jsx에서 이 요소를 찾아 React를 연결함 -->
+
+  <script type="module" src="/src/main.jsx"></script>
+  <!-- type="module" : ES Module 방식으로 JS 파일을 불러옴 (import/export 사용 가능) -->
+  <!-- src="/src/main.jsx" : React 앱의 시작점 파일을 불러옴 -->
+</body>
 </html>

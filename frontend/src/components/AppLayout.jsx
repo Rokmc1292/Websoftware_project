@@ -1,7 +1,24 @@
-import {Outlet} from 'react-router-dom';
-import Header from './Header.jsx';
-import {colors} from '../styles/colors.js';
+// AppLayout.jsx — 로그인 후 모든 기능 페이지에 공통으로 적용되는 레이아웃 컴포넌트
+//
+// 역할: 헤더(Header)를 화면 상단에 고정하고, 그 아래에 현재 페이지 내용을 렌더링
+//
+// React Router의 "중첩 라우팅(Nested Routing)" 패턴을 사용:
+//   App.jsx에서 <Route element={<AppLayout />}> 로 감싸면
+//   그 안의 자식 라우트들이 <Outlet /> 자리에 렌더링됨
+//
+// 구조:
+//   <AppLayout>
+//     ├── <Header />    ← 항상 화면 상단에 고정
+//     └── <Outlet />    ← /workout, /diet, /sleep, /stats 중 현재 경로의 컴포넌트가 여기에 들어옴
 
+import { Outlet } from 'react-router-dom';
+// Outlet : 중첩 라우팅에서 자식 라우트 컴포넌트를 렌더링하는 자리표시자(placeholder)
+// <Outlet />이 있는 위치에 현재 URL과 일치하는 자식 컴포넌트가 그려짐
+
+import Header from './Header.jsx';         // 헤더 바 컴포넌트 — 로고·탭·아바타 포함
+import { colors } from '../styles/colors.js'; // 앱 전체 공통 색상 상수
+
+// AppLayout 컴포넌트 — 헤더 + 페이지 콘텐츠 영역으로 구성된 전체 레이아웃
 function AppLayout() {
   return (
     // 페이지 전체를 감싸는 최외곽 컨테이너
@@ -41,4 +58,4 @@ function AppLayout() {
   );
 }
 
-export default AppLayout;
+export default AppLayout; // App.jsx에서 import해 중첩 라우팅에 사용
