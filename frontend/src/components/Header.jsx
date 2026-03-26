@@ -77,15 +77,41 @@ function Header() {
         <div
           onClick={handleLogoClick} // 클릭 시 운동루틴 페이지로 이동
           style={{
-            fontWeight: 800,          // 매우 굵게 (ExtraBold)
-            fontSize: 18,             // 18px
-            color: colors.primary,    // 주요 파랑-보라 색
+            display: 'flex',          // 이미지와 텍스트를 가로로 나란히 배치
+            alignItems: 'center',     // 이미지와 텍스트를 세로 중앙 정렬
+            gap: 8,                   // 이미지와 텍스트 사이 간격 8px
             cursor: 'pointer',        // 마우스를 올리면 손가락 커서 — 클릭 가능함을 표시
             userSelect: 'none',       // 더블클릭 시 텍스트가 선택되지 않도록
-            letterSpacing: '-0.3px',  // 자간 약간 좁게 — 로고 느낌
           }}
         >
-          ⚡ FitCore {/* 번개 이모지 + 서비스 이름 */}
+          {/* 로고 이미지 — public/logo.png 파일을 직접 교체하면 됩니다
+              파일이 없으면 이미지 영역이 비어 보이므로, 반드시 logo.png를 넣어주세요
+              권장 크기: 가로 64px × 세로 64px 이상, PNG(투명 배경) 형식 */}
+          <img
+            src="/logo.png"
+            // /logo.png : public 폴더 기준 절대경로 — frontend/public/logo.png 파일을 참조
+            alt="hill 로고"
+            // alt : 이미지 로드 실패 시 표시되는 대체 텍스트 & 스크린 리더용 설명
+            style={{
+              width: 32,          // 헤더 높이(56px)에 맞춘 로고 이미지 너비
+              height: 32,         // 정방형 — 이미지 비율과 상관없이 32×32 박스에 맞춤
+              objectFit: 'contain', // contain : 비율을 유지하며 박스 안에 맞춤 (잘리지 않음)
+              borderRadius: 6,    // 모서리를 약간 둥글게 — 로고 느낌
+            }}
+          />
+
+          {/* 서비스 이름 텍스트 */}
+          <span
+            style={{
+              fontWeight: 800,         // 매우 굵게 (ExtraBold) — 로고 느낌
+              fontSize: 18,            // 18px
+              color: colors.primary,   // 주요 파랑-보라 색 — colors.js의 primary 값
+              letterSpacing: '-0.5px', // 자간 약간 좁게 — 짧은 이름을 더 임팩트 있게
+            }}
+          >
+            
+            {/* 서비스 이름 "hill" — 소문자 그대로 사용 (브랜드 스타일) */}
+          </span>
         </div>
 
         {/* ── 가운데: 탭 네비게이션 ── */}

@@ -248,8 +248,39 @@
    ============================================================================= */
 
 .login-logo {
-  font-size: 1.25rem;
-  /* 20px */
+  display: flex;
+  /* 이미지와 텍스트를 가로로 나란히 배치 */
+
+  align-items: center;
+  /* 이미지와 텍스트를 세로 중앙 정렬 */
+
+  gap: 10px;
+  /* 이미지와 텍스트 사이 간격 10px */
+
+  margin-bottom: 2rem;
+  /* 아래 제목과의 간격 */
+}
+
+/* 로그인 페이지 로고 이미지
+   — public/logo.png 파일을 교체하면 자동으로 반영됩니다 */
+.login-logo-img {
+  width: 40px;
+  /* 로고 이미지 너비 — 로그인 폼에서 헤더보다 조금 크게 표시 */
+
+  height: 40px;
+  /* 정방형 박스 */
+
+  object-fit: contain;
+  /* 이미지 비율을 유지하며 박스 안에 꼭 맞게 표시 (잘리지 않음) */
+
+  border-radius: 8px;
+  /* 모서리를 약간 둥글게 — 로고 느낌 */
+}
+
+/* 로그인 페이지 로고 텍스트 "hill" */
+.login-logo-text {
+  font-size: 1.375rem;
+  /* 22px — 헤더의 18px보다 약간 크게 */
 
   font-weight: 800;
   /* ExtraBold */
@@ -257,11 +288,8 @@
   color: #4F6EF7;
   /* colors.primary — 헤더 바 로고와 동일한 색상 */
 
-  margin-bottom: 2rem;
-  /* 아래 제목과의 간격 */
-
-  letter-spacing: -0.3px;
-  /* 자간 약간 좁게 — 로고 텍스트 느낌 */
+  letter-spacing: -0.5px;
+  /* 자간 약간 좁게 — 짧은 이름을 더 임팩트 있게 */
 }
 
 .login-title {

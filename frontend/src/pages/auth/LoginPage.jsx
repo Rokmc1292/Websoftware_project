@@ -314,8 +314,25 @@ function LoginPage() {
         <div className="login-form-box">
 
           {/* ── 헤더: 로고 · 제목 · 부제목 ── */}
-          <div className="login-logo">💪 No Sweat,No Sweet</div>
-          {/* 헤더 바의 로고와 동일한 텍스트·색상 — 브랜드 일관성 */}
+          <div className="login-logo">
+            {/* 로고 영역 — 이미지와 서비스 이름을 가로로 나란히 배치 */}
+
+            {/* 로고 이미지 — public/logo.png 파일을 교체하면 즉시 반영됩니다
+                파일이 없으면 이미지 영역이 비어 보이므로 반드시 넣어주세요
+                권장 크기: 가로 64px × 세로 64px 이상, PNG(투명 배경) 형식 */}
+            <img
+              src="/logo.png"
+              // /logo.png : public 폴더 기준 절대경로 — frontend/public/logo.png 파일을 참조
+              alt="hill 로고"
+              // alt : 이미지 로드 실패 시 표시되는 대체 텍스트 & 스크린 리더용 설명
+              className="login-logo-img"
+              // LoginPage.css의 .login-logo-img 클래스로 크기·여백 제어
+            />
+
+            {/* 서비스 이름 — 헤더 바의 텍스트와 동일하게 맞춰 브랜드 일관성 유지 */}
+            <span className="login-logo-text"></span>
+            {/* hill : 소문자 그대로 사용 (브랜드 스타일) */}
+          </div>
 
           <h1 className="login-title">다시 오신 것을<br />환영합니다 👋</h1>
           {/* <br /> : 줄 바꿈 — "환영합니다"가 다음 줄에 표시됨 */}
