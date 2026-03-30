@@ -47,11 +47,15 @@ def create_app():
 
     # ── 블루프린트 등록 ──
     # 블루프린트(Blueprint) : URL 경로 그룹을 모듈화하는 Flask 기능
-    # 지금은 인증(auth) 블루프린트만 등록하고, 나중에 workout, diet 등을 추가
     from .routes.auth import auth_bp  # auth.py에 정의된 블루프린트를 불러옴
     # url_prefix='/api/auth' : 이 블루프린트의 모든 라우트 앞에 '/api/auth'가 붙음
     # 예: @auth_bp.route('/login') → 실제 URL은 /api/auth/login
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
+
+    from .routes.workout import workout_bp  # workout.py에 정의된 블루프린트를 불러옴
+    # url_prefix='/api/workout' : 이 블루프린트의 모든 라우트 앞에 '/api/workout'가 붙음
+    # 예: @workout_bp.route('/sessions') → 실제 URL은 /api/workout/sessions
+    app.register_blueprint(workout_bp, url_prefix='/api/workout')
 
     # ── 앱 컨텍스트 안에서 테이블 생성 ──
     # app.app_context() : Flask 앱 컨텍스트 — db, jwt 등의 확장이 활성화된 환경
