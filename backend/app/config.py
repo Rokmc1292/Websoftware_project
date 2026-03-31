@@ -3,6 +3,7 @@
 
 import os  # os 모듈 — 환경변수(os.getenv)와 파일 경로(os.path)를 다룰 때 사용
 from dotenv import load_dotenv  # python-dotenv 패키지 — .env 파일을 자동으로 읽어 환경변수로 등록
+from sqlalchemy.engine import URL
 
 # .env 파일의 내용을 환경변수로 로드
 # load_dotenv()를 호출하면 .env 파일에 적힌 KEY=VALUE 들이 os.environ에 등록됨
@@ -42,13 +43,18 @@ class Config:
     DB_USER = os.getenv('DB_USER', 'root')             # MySQL 사용자명
     DB_PASSWORD = os.getenv('DB_PASSWORD', '')         # MySQL 비밀번호
 
-    # SQLALCHEMY_DATABASE_URI : SQLAlchemy가 MySQL에 연결할 때 사용하는 연결 문자열
-    # 형식: mysql+pymysql://사용자명:비밀번호@주소:포트/데이터베이스명
-    # pymysql : Python ↔ MySQL 연결 드라이버 (requirements.txt에 포함)
-    SQLALCHEMY_DATABASE_URI = (
-        f'mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
-        '?charset=utf8mb4'  # utf8mb4 : 한글과 이모지를 모두 저장할 수 있는 인코딩
-    )
+    # 비밀번호를 URI에 직접 넣지 않고 connect_args로 분리해 전달
+    SQLALCHEMY_DATABASE_URI = URL.create(
+        drivername='mysql+pymysql',
+        username=DB_USER,
+        host=DB_HOST,
+        port=int(DB_PORT),
+        database=DB_NAME,
+        query={'charset': 'utf8mb4'},
+    ).render_as_string(hide_password=False)
+
+    _connect_password = DB_PASSWORD.encode('utf-8') if any(ord(ch) > 255 for ch in DB_PASSWORD) else DB_PASSWORD
+    SQLALCHEMY_ENGINE_OPTIONS = {'connect_args': {'password': _connect_password}} if DB_PASSWORD else {}
 
     # SQLALCHEMY_TRACK_MODIFICATIONS : 객체 변경 추적 기능
     # False로 설정 — 메모리 낭비를 줄이고 Flask 경고 메시지 제거
