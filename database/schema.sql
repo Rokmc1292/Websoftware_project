@@ -282,48 +282,50 @@ CREATE TABLE diet_records (
 -- -----------------------------------------------------------------------------
 -- 5. sleep_records — 수면 기록 테이블
 -- -----------------------------------------------------------------------------
--- 하루에 하나의 수면 기록 (취침 시간, 기상 시간, 수면 품질 점수)
+-- 하루에 하나의 수면 기록
+-- 프론트 수면 페이지에서 사용하는 입력값 + 분석값 + 기상 목표를 함께 저장
 
 DROP TABLE IF EXISTS sleep_records;
 
 CREATE TABLE sleep_records (
 
   -- ── 기본 키 ──
-  id              INT UNSIGNED    NOT NULL AUTO_INCREMENT,
+  id                INT UNSIGNED      NOT NULL AUTO_INCREMENT,
 
   -- ── 외래 키 — 어떤 사용자의 수면 기록인지 연결 ──
-  user_id         INT UNSIGNED    NOT NULL,
+  user_id           INT UNSIGNED      NOT NULL,
 
-  -- ── 수면 날짜 ──
-  sleep_date      DATE            NOT NULL,
-  -- 잠든 날짜 (YYYY-MM-DD) — 기상일이 아닌 취침일 기준
+  -- ── 날짜 ──
+  record_date       DATE              NOT NULL,
+  -- 프론트 selectedDate 와 매핑됨 (YYYY-MM-DD)
 
-  -- ── 수면 시간 ──
-  bedtime         TIME            DEFAULT NULL,
-  -- 취침 시간 (HH:MM:SS 형식, 예: '23:30:00')
-  -- TIME 타입 : -838:59:59 ~ 838:59:59 범위 지원 — 자정 넘어도 OK
+  -- ── 수면 시간 입력값 ──
+  bed_hour          TINYINT UNSIGNED  NOT NULL,
+  bed_minute        TINYINT UNSIGNED  NOT NULL,
+  wake_hour         TINYINT UNSIGNED  NOT NULL,
+  wake_minute       TINYINT UNSIGNED  NOT NULL,
 
-  wake_time       TIME            DEFAULT NULL,
-  -- 기상 시간 (예: '07:00:00')
+  -- ── 계산값 ──
+  sleep_hours       DECIMAL(4, 1)     NOT NULL,
+  -- 예: 7.5시간, 8.0시간
 
-  sleep_duration_min SMALLINT UNSIGNED DEFAULT NULL,
-  -- 실제 수면 시간 (분 단위) — bedtime과 wake_time으로 계산하거나 직접 입력
-  -- SMALLINT(0~65,535): 65,535분 = 약 45일치 수면 — 충분
+  satisfaction      DECIMAL(2, 1)     NOT NULL DEFAULT 0,
+  -- 별점 0 ~ 5, 0.5 단위까지 저장 가능
 
-  -- ── 수면 품질 ──
-  quality_score   TINYINT UNSIGNED DEFAULT NULL,
-  -- 수면 품질 점수 (1~10) — 사용자가 슬라이더로 입력
-  -- TINYINT(0~255) : 1~10 저장에 충분
+  memo              VARCHAR(500)      DEFAULT NULL,
 
-  -- ── 메모 ──
-  memo            VARCHAR(300)    DEFAULT NULL,
-  -- 수면 관련 메모 (예: '카페인 늦게 먹음', '꿈을 많이 꿈')
-  -- TEXT 대신 VARCHAR(300) — 짧은 메모이므로 공간 절약
+  sleep_quality     TINYINT UNSIGNED  NOT NULL DEFAULT 0,
+  freshness         TINYINT UNSIGNED  NOT NULL DEFAULT 0,
+  growth            TINYINT UNSIGNED  NOT NULL DEFAULT 0,
+  mission_rate      TINYINT UNSIGNED  NOT NULL DEFAULT 0,
+
+  -- ── 기상 목표 목록(JSON 문자열 저장) ──
+  goals_json        JSON              DEFAULT NULL,
 
   -- ── 타임스탬프 ──
-  created_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP
-                                           ON UPDATE CURRENT_TIMESTAMP,
+  created_at        DATETIME          NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at        DATETIME          NOT NULL DEFAULT CURRENT_TIMESTAMP
+                                                 ON UPDATE CURRENT_TIMESTAMP,
 
   -- ── 제약 조건 ──
   PRIMARY KEY (id),
@@ -332,14 +334,11 @@ CREATE TABLE sleep_records (
     FOREIGN KEY (user_id) REFERENCES users (id)
     ON DELETE CASCADE,
 
-  -- 같은 사용자, 같은 날짜에 수면 기록은 하나만 존재해야 함
-  UNIQUE KEY uq_sleep_user_date (user_id, sleep_date),
-  -- 중복 기록 방지 — 하루에 두 번 잠든 경우는 memo에 기록하는 정책
-
-  -- 특정 사용자의 최근 수면 기록 조회를 빠르게 하기 위한 인덱스
-  INDEX idx_sleep_user_date (user_id, sleep_date)
+  UNIQUE KEY uq_sleep_user_date (user_id, record_date),
+  INDEX idx_sleep_user_date (user_id, record_date)
 
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 
 
 -- =============================================================================
