@@ -57,6 +57,9 @@ def create_app():
     # 예: @workout_bp.route('/sessions') → 실제 URL은 /api/workout/sessions
     app.register_blueprint(workout_bp, url_prefix='/api/workout')
 
+    from .routes.diet import diet_bp
+    app.register_blueprint(diet_bp, url_prefix='/api/diet')
+
     # ── 앱 컨텍스트 안에서 테이블 생성 ──
     # app.app_context() : Flask 앱 컨텍스트 — db, jwt 등의 확장이 활성화된 환경
     # with 블록 안에서만 db.create_all() 등을 사용할 수 있음

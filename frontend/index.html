@@ -3,21 +3,21 @@
 <html lang="ko">
 <!-- lang="ko" : 이 페이지가 한국어 문서임을 브라우저와 검색엔진에 알려줌 -->
 <head>
-  <meta charset="UTF-8" />
-  <!-- UTF-8 인코딩 설정 — 한글, 이모지 등 다양한 문자를 깨지지 않게 표시 -->
+    <meta charset="UTF-8"/>
+    <!-- UTF-8 인코딩 설정 — 한글, 이모지 등 다양한 문자를 깨지지 않게 표시 -->
 
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <!-- 모바일 반응형 설정 — 화면 너비를 기기 너비에 맞추고 초기 배율을 1.0으로 설정 -->
-
-  <title>hill</title>
-  <!-- 브라우저 탭에 표시되는 페이지 제목 — 서비스 이름 "hill" -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <!-- 모바일 반응형 설정 — 화면 너비를 기기 너비에 맞추고 초기 배율을 1.0으로 설정 -->
+    <link href="./public/logo.png" rel="shortcut icon" type="image/x-icon">
+    <title>hill</title>
+    <!-- 브라우저 탭에 표시되는 페이지 제목 및 로고 — 서비스 이름 "hill" -->
 </head>
 <body>
-  <div id="root"></div>
-  <!-- React 앱이 이 div 안에 통째로 렌더링됨 — main.jsx에서 이 요소를 찾아 React를 연결함 -->
+<div id="root"></div>
+<!-- React 앱이 이 div 안에 통째로 렌더링됨 — main.jsx에서 이 요소를 찾아 React를 연결함 -->
 
-  <script type="module" src="/src/main.jsx"></script>
-  <!-- type="module" : ES Module 방식으로 JS 파일을 불러옴 (import/export 사용 가능) -->
-  <!-- src="/src/main.jsx" : React 앱의 시작점 파일을 불러옴 -->
+<script type="module" src="./src/main.jsx"></script>
+<!-- type="module" : ES Module 방식으로 JS 파일을 불러옴 (import/export 사용 가능) -->
+<!-- src="/src/main.jsx" : React 앱의 시작점 파일을 불러옴 -->
 </body>
 </html>
