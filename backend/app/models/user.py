@@ -3,7 +3,8 @@
 # SQLAlchemy ORM을 사용해 Python 코드로 DB를 조작함
 
 import bcrypt  # bcrypt — 비밀번호를 안전하게 암호화(해싱)하는 라이브러리
-from datetime import datetime  # datetime — 날짜와 시간을 다루는 Python 표준 라이브러리
+from datetime import datetime, timezone  # datetime — 날짜와 시간을 다루는 Python 표준 라이브러리
+from sqlalchemy.dialects.mysql import INTEGER, SMALLINT
 from .. import db  # 부모 패키지(app)의 __init__.py에서 db 객체를 가져옴 (..은 상위 폴더를 의미)
 
 
@@ -24,7 +25,7 @@ class User(db.Model):
     # id : 기본 키 (Primary Key) — 각 사용자를 고유하게 식별하는 숫자
     # Integer : 정수 타입, primary_key=True : 이 컬럼이 기본 키임을 선언
     # autoincrement=True : 새 행 삽입 시 자동으로 1씩 증가 (1, 2, 3, ...)
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    id = db.Column(INTEGER(unsigned=True), primary_key=True, autoincrement=True)
 
     # username : 사용자 닉네임
     # String(50) : 최대 50자의 문자열
@@ -41,11 +42,16 @@ class User(db.Model):
     # 60자 고정 길이가 아닌 String(255) 사용 — bcrypt 버전 변경에 대비
     password_hash = db.Column(db.String(255), nullable=False)
 
+    goal_calories = db.Column(SMALLINT(unsigned=True), nullable=False, default=2000)
+    goal_protein = db.Column(SMALLINT(unsigned=True), nullable=False, default=100)
+    goal_carbs = db.Column(SMALLINT(unsigned=True), nullable=False, default=300)
+    goal_fat = db.Column(SMALLINT(unsigned=True), nullable=False, default=60)
+
     # created_at : 계정 생성 일시
     # DateTime : 날짜+시간 타입
     # default=datetime.utcnow : 새 행이 삽입될 때 자동으로 현재 UTC 시간이 저장됨
     # (utcnow는 함수 참조를 전달 — utcnow()처럼 괄호를 붙이면 앱 시작 시간이 기록되어 버림)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
     # ─────────────────────────────────────────────
     # 메서드(Method) 정의
@@ -89,6 +95,12 @@ class User(db.Model):
             'username': self.username,  # 닉네임
             'email': self.email,  # 이메일
             'created_at': self.created_at.isoformat(),  # ISO 8601 형식 날짜 문자열 (예: "2024-01-15T09:30:00")
+            'diet_goals': {
+                'calories': int(self.goal_calories or 2000),
+                'protein': int(self.goal_protein or 100),
+                'carbs': int(self.goal_carbs or 300),
+                'fat': int(self.goal_fat or 60),
+            },
         }
 
     def __repr__(self):
