@@ -2,197 +2,271 @@
 // /workout 경로로 접속하면 AppLayout 안의 <Outlet />에 이 컴포넌트가 렌더링됨
 //
 // 역할:
-//   - 서버에서 운동 세션 목록을 불러와 상태(state)로 관리
-//   - "새 운동 기록" 폼(SessionForm)의 표시/숨기기 제어
-//   - 세션 목록을 카드(SessionCard)로 렌더링
-//   - 세션 삭제·AI 분석 콜백 함수를 자식 컴포넌트에 전달
+//   - 서버에서 운동 세션 목록 로드 (페이지네이션·검색·필터 지원)
+//   - 새 운동 기록 폼 / 수정 폼 표시·숨기기 제어
+//   - 세션 목록을 카드로 렌더링
+//   - 즐겨찾기 목록 패널 (루틴 불러오기)
+//   - 삭제·AI 분석·즐겨찾기 토글·수정 콜백 관리
 
-// useState  : 컴포넌트 안에서 변하는 값(상태)을 저장하고 관리하는 React 훅
-// useEffect : 컴포넌트가 화면에 나타날 때(마운트) 또는 특정 값이 바뀔 때 코드를 실행하는 React 훅
 import { useState, useEffect } from 'react';
-
-// 공통 색상 상수 — 모든 스타일에서 이 객체의 값을 사용해 일관된 색상 유지
 import { colors } from '../../styles/colors.js';
-
-// getSessions  : 서버에서 운동 세션 목록을 가져오는 API 함수
-// deleteSession: 특정 세션을 서버에서 삭제하는 API 함수
-// analyzeSession: 특정 세션을 AI로 분석 요청하는 API 함수
-import { getSessions, deleteSession, analyzeSession } from '../../api/workoutApi.js';
-
-// SessionForm : 새 운동 기록을 입력하는 폼 컴포넌트 (같은 폴더에 위치)
+import {
+    getSessions,
+    deleteSession,
+    analyzeSession,
+    toggleFavorite,
+    getFavorites,
+} from '../../api/workoutApi.js';
 import SessionForm from './SessionForm.jsx';
-
-// SessionCard : 저장된 운동 세션 하나를 카드 형태로 보여주는 컴포넌트
 import SessionCard from './SessionCard.jsx';
 
 
-// WorkoutPage 컴포넌트 — 운동루틴 페이지 전체를 담당
+// 페이지 당 세션 수
+const PER_PAGE = 10;
+
+// 운동 부위 필터 선택지
+const MUSCLE_GROUP_OPTIONS = ['전체', '가슴', '등', '하체', '어깨', '팔', '코어', '유산소', '기타'];
+
+
+// WorkoutPage 컴포넌트
 function WorkoutPage() {
 
     // ─────────────────────────────────────────────
     // 상태(State) 선언
     // ─────────────────────────────────────────────
 
-    // sessions : 서버에서 불러온 운동 세션 목록 (배열)
-    // 초기값은 빈 배열 [] — 아직 서버에서 데이터를 받기 전 상태
+    // sessions : 서버에서 불러온 운동 세션 목록
     const [sessions, setSessions] = useState([]);
 
-    // showForm : 새 운동 기록 입력 폼을 화면에 보여줄지 여부 (true=보임, false=숨김)
-    // 초기값 false — 페이지 처음 열 때 폼은 숨겨진 상태
+    // showForm : 새 운동 기록 입력 폼 표시 여부
     const [showForm, setShowForm] = useState(false);
 
-    // loading : 서버에서 세션 목록을 불러오는 중인지 여부 (true=로딩 중)
-    // 초기값 true — 페이지 열자마자 데이터를 불러오므로 처음엔 로딩 상태
+    // editingSession : 수정 중인 세션 객체 (null이면 수정 모드 아님)
+    const [editingSession, setEditingSession] = useState(null);
+
+    // loading : 세션 목록 로드 중 여부
     const [loading, setLoading] = useState(true);
 
-    // errorMsg : 세션 목록 로드 실패 시 표시할 오류 메시지 (없으면 null)
+    // errorMsg : 로드 실패 시 오류 메시지
     const [errorMsg, setErrorMsg] = useState(null);
 
-    // analyzingId : 현재 AI 분석 중인 세션의 ID (분석 중이 아니면 null)
-    // 분석 버튼에 로딩 표시를 해주기 위해 사용
+    // analyzingId : 현재 AI 분석 중인 세션 ID
     const [analyzingId, setAnalyzingId] = useState(null);
 
+    // ── 검색·필터 상태 ──
+
+    // searchQuery : 텍스트 검색어 (세션 제목·메모·종목명)
+    const [searchQuery, setSearchQuery] = useState('');
+
+    // filterMuscle : 운동 부위 필터 ('전체' 이면 전체 표시)
+    const [filterMuscle, setFilterMuscle] = useState('전체');
+
+    // filterMonth : 월별 필터 ('YYYY-MM' 형식, 빈 문자열이면 전체)
+    const [filterMonth, setFilterMonth] = useState('');
+
+    // ── 페이지네이션 상태 ──
+
+    // currentPage : 현재 페이지 번호 (1부터 시작)
+    const [currentPage, setCurrentPage] = useState(1);
+
+    // ── 즐겨찾기 패널 상태 ──
+
+    // showFavorites : 즐겨찾기 목록 패널 표시 여부
+    const [showFavorites, setShowFavorites] = useState(false);
+
+    // favorites : 즐겨찾기 세션 목록
+    const [favorites, setFavorites] = useState([]);
+
+    // loadingFavorites : 즐겨찾기 로드 중 여부
+    const [loadingFavorites, setLoadingFavorites] = useState(false);
+
 
     // ─────────────────────────────────────────────
-    // 데이터 로딩 — 컴포넌트가 처음 화면에 나타날 때 실행
+    // 마운트 시 세션 목록 로드
     // ─────────────────────────────────────────────
 
-    // useEffect(함수, []) : 두 번째 인자가 빈 배열 [] 이면 컴포넌트 마운트 시 딱 한 번만 실행
-    // 컴포넌트가 처음 렌더링될 때 서버에서 세션 목록을 불러옴
     useEffect(() => {
-        fetchSessions(); // 세션 목록 조회 함수 호출
-    }, []); // 빈 배열 → 마운트(처음 나타날 때) 한 번만 실행
+        fetchSessions();
+    }, []); // 빈 배열 → 마운트 1회만 실행
 
 
     // ─────────────────────────────────────────────
     // 함수 정의
     // ─────────────────────────────────────────────
 
-    // fetchSessions : 서버에서 운동 세션 목록을 불러와 sessions 상태에 저장
-    // async : 이 함수 안에서 await를 사용할 수 있도록 선언
+    // fetchSessions : 서버에서 세션 목록을 불러와 sessions 상태에 저장
     const fetchSessions = async () => {
         try {
-            setLoading(true);  // 로딩 시작 — 화면에 "불러오는 중..." 표시
-            setErrorMsg(null); // 이전 오류 메시지 초기화
-
-            // getSessions() : workoutApi.js의 API 함수 — GET /api/workout/sessions 요청
-            // await : 서버 응답이 올 때까지 기다림
+            setLoading(true);
+            setErrorMsg(null);
             const data = await getSessions();
-
-            // data.sessions : 서버가 반환한 세션 배열
-            // setSessions() : sessions 상태를 업데이트 → React가 화면을 다시 그림(리렌더링)
             setSessions(data.sessions);
-
         } catch (error) {
-            // 서버 요청 실패 시 (네트워크 오류, 로그인 만료 등)
             setErrorMsg('운동 기록을 불러오지 못했습니다. 다시 시도해주세요.');
-            console.error('세션 목록 로드 오류:', error); // 개발자 콘솔에 오류 출력
-
+            console.error('세션 목록 로드 오류:', error);
         } finally {
-            // try·catch 결과에 관계없이 항상 실행 — 로딩 종료
             setLoading(false);
         }
     };
 
 
-    // handleSessionCreated : 새 세션이 성공적으로 저장됐을 때 호출되는 콜백 함수
-    // SessionForm 컴포넌트에서 저장 완료 후 이 함수를 호출함
-    // newSession : 서버에서 반환된 새 세션 객체
+    // handleSessionCreated : 새 세션 저장 완료 시 목록 맨 앞에 추가
     const handleSessionCreated = (newSession) => {
-        // 새 세션을 기존 목록의 맨 앞에 추가 (최신순 유지)
-        // 스프레드 연산자(...) : 기존 배열을 풀어서 새 배열 생성
-        // [newSession, ...sessions] = [새 세션, 기존세션1, 기존세션2, ...]
         setSessions([newSession, ...sessions]);
-
-        // 새 세션 저장 후 폼을 자동으로 닫음
-        setShowForm(false);
+        setShowForm(false); // 폼 닫기
     };
 
 
-    // handleDeleteSession : 특정 세션을 삭제하는 함수
-    // SessionCard 컴포넌트의 삭제 버튼에서 이 함수를 호출함
-    // sessionId : 삭제할 세션의 고유 ID (숫자)
+    // handleSessionUpdated : 세션 수정 완료 시 해당 항목 업데이트
+    const handleSessionUpdated = (updatedSession) => {
+        setSessions(sessions.map(s =>
+            s.id === updatedSession.id ? updatedSession : s
+        ));
+        setEditingSession(null); // 수정 모드 종료
+    };
+
+
+    // handleCancelEdit : 수정 취소
+    const handleCancelEdit = () => setEditingSession(null);
+
+
+    // handleDeleteSession : 세션 삭제
     const handleDeleteSession = async (sessionId) => {
-        // window.confirm() : 브라우저 기본 확인 팝업 — 사용자가 "확인"을 누르면 true 반환
-        if (!window.confirm('이 운동 기록을 삭제하시겠습니까?')) {
-            return; // "취소"를 누르면 함수 종료 — 삭제하지 않음
-        }
-
+        if (!window.confirm('이 운동 기록을 삭제하시겠습니까?')) return;
         try {
-            // deleteSession() : DELETE /api/workout/sessions/:id 요청
             await deleteSession(sessionId);
-
-            // 삭제 성공 시 sessions 배열에서 해당 세션을 제거
-            // filter() : 조건이 true인 요소만 남긴 새 배열 생성
-            // s.id !== sessionId : 삭제된 세션(ID가 일치하는 것)을 제외
             setSessions(sessions.filter(s => s.id !== sessionId));
-
         } catch (error) {
-            alert('삭제 중 오류가 발생했습니다.'); // 실패 시 알림
+            alert('삭제 중 오류가 발생했습니다.');
             console.error('세션 삭제 오류:', error);
         }
     };
 
 
-    // handleAnalyzeSession : 특정 세션의 AI 분석을 요청하는 함수
-    // SessionCard 컴포넌트의 "AI 분석" 버튼에서 이 함수를 호출함
-    // sessionId : 분석할 세션의 고유 ID (숫자)
+    // handleAnalyzeSession : AI 분석 요청
     const handleAnalyzeSession = async (sessionId) => {
-        setAnalyzingId(sessionId); // 분석 중인 세션 ID 기록 → 해당 버튼에 로딩 표시
-
+        setAnalyzingId(sessionId);
         try {
-            // analyzeSession() : POST /api/workout/sessions/:id/analyze 요청
-            // Claude AI 분석 결과를 서버에서 받아옴
             const data = await analyzeSession(sessionId);
-
-            // 분석 결과를 해당 세션의 ai_feedback에 업데이트
-            // map() : 배열의 각 요소를 변환해 새 배열 생성
-            // 분석 대상 세션만 ai_feedback을 업데이트하고 나머지는 그대로 유지
             setSessions(sessions.map(s =>
-                s.id === sessionId                           // 분석 대상 세션인지 확인
-                    ? { ...s, ai_feedback: data.ai_feedback } // 맞으면 ai_feedback 업데이트
-                    : s                                       // 아니면 기존 세션 그대로
+                s.id === sessionId ? { ...s, ai_feedback: data.ai_feedback } : s
             ));
-
         } catch (error) {
             alert('AI 분석 중 오류가 발생했습니다.');
             console.error('AI 분석 오류:', error);
-
         } finally {
-            setAnalyzingId(null); // 분석 완료 — 로딩 표시 제거
+            setAnalyzingId(null);
         }
     };
 
 
+    // handleToggleFavorite : 즐겨찾기 토글
+    // 서버에 요청 후 로컬 sessions 상태의 is_favorite도 업데이트
+    const handleToggleFavorite = async (sessionId) => {
+        try {
+            const data = await toggleFavorite(sessionId);
+            setSessions(sessions.map(s =>
+                s.id === sessionId ? { ...s, is_favorite: data.is_favorite } : s
+            ));
+        } catch (error) {
+            alert('즐겨찾기 변경 중 오류가 발생했습니다.');
+            console.error('즐겨찾기 토글 오류:', error);
+        }
+    };
+
+
+    // handleOpenFavorites : 즐겨찾기 패널 열기 + 목록 로드
+    const handleOpenFavorites = async () => {
+        setShowFavorites(true);
+        setLoadingFavorites(true);
+        try {
+            const data = await getFavorites();
+            setFavorites(data.sessions);
+        } catch (error) {
+            console.error('즐겨찾기 로드 오류:', error);
+        } finally {
+            setLoadingFavorites(false);
+        }
+    };
+
+
+    // handleEditSession : 세션 수정 버튼 클릭 — 수정 폼 열기
+    const handleEditSession = (session) => {
+        setEditingSession(session); // 수정할 세션 설정
+        setShowForm(false);         // 새 세션 폼은 닫기
+        // 스크롤을 페이지 상단으로 이동해 수정 폼이 보이도록 함
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+
     // ─────────────────────────────────────────────
-    // JSX 렌더링 — 화면에 그려질 내용
+    // 클라이언트 측 검색·필터·페이지네이션
+    // ─────────────────────────────────────────────
+
+    // filteredSessions : 검색어·부위·월 필터를 적용한 세션 목록
+    const filteredSessions = sessions.filter(session => {
+
+        // 텍스트 검색 — 세션 제목, 메모, 종목 이름에서 검색어 포함 여부 확인
+        if (searchQuery.trim()) {
+            const q = searchQuery.trim().toLowerCase();
+            // 세션 제목에 검색어 포함 여부
+            const inTitle = (session.title || '').toLowerCase().includes(q);
+            // 메모에 검색어 포함 여부
+            const inMemo = (session.memo || '').toLowerCase().includes(q);
+            // 종목 이름에 검색어 포함 여부 (하나라도 포함되면 통과)
+            const inExercise = session.sets.some(s =>
+                s.exercise_name.toLowerCase().includes(q)
+            );
+            if (!inTitle && !inMemo && !inExercise) return false;
+        }
+
+        // 운동 부위 필터 — '전체'가 아니면 해당 부위의 종목이 하나라도 있어야 함
+        if (filterMuscle !== '전체') {
+            const hasMusle = session.sets.some(s => s.muscle_group === filterMuscle);
+            if (!hasMusle) return false;
+        }
+
+        // 월별 필터 — 'YYYY-MM' 형식으로 비교
+        if (filterMonth) {
+            // session_date: "2024-06-01" → slice(0, 7) → "2024-06"
+            if (!session.session_date.startsWith(filterMonth)) return false;
+        }
+
+        return true; // 모든 조건 통과
+    });
+
+    // 필터 적용 후 총 페이지 수 계산
+    const totalPages = Math.max(1, Math.ceil(filteredSessions.length / PER_PAGE));
+
+    // 현재 페이지에 표시할 세션 슬라이스
+    const pagedSessions = filteredSessions.slice(
+        (currentPage - 1) * PER_PAGE,  // 시작 인덱스
+        currentPage * PER_PAGE          // 끝 인덱스 (미포함)
+    );
+
+    // 필터가 바뀌면 1페이지로 리셋 — 아직 없는 페이지를 보여주지 않도록
+    // (useEffect로 처리하면 추가 렌더링이 발생하므로 여기서 직접 계산)
+    const effectivePage = Math.min(currentPage, totalPages);
+
+
+    // ─────────────────────────────────────────────
+    // JSX 렌더링
     // ─────────────────────────────────────────────
 
     return (
-        // 페이지 콘텐츠 최외곽 컨테이너
         <div>
 
-            {/* ── 페이지 헤더 영역 ── */}
-            <div
-                style={{
-                    display: 'flex',         // 제목·배지·버튼을 가로로 나란히 배치
-                    alignItems: 'center',    // 세로 중앙 정렬
-                    gap: 10,                 // 요소 사이 간격 10px
-                    marginBottom: 20,        // 아래 콘텐츠와의 간격
-                }}
-            >
-                {/* 페이지 제목 */}
+            {/* ── 페이지 헤더 ── */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
                 <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: colors.text }}>
                     운동루틴
                 </h2>
-
-                {/* AI 분석 포함 배지 — AI 기능이 있다는 것을 시각적으로 표시 */}
                 <span
                     style={{
-                        background: colors.aiTagLight, // 연한 보라 배경
-                        color: colors.aiTag,           // 보라 글씨
-                        borderRadius: 6,               // 모서리 둥글게
-                        padding: '2px 8px',            // 위아래 2px, 좌우 8px 여백
+                        background: colors.aiTagLight,
+                        color: colors.aiTag,
+                        borderRadius: 6,
+                        padding: '2px 8px',
                         fontSize: 11,
                         fontWeight: 600,
                     }}
@@ -200,82 +274,188 @@ function WorkoutPage() {
                     ✦ AI 분석 포함
                 </span>
 
-                {/* 오른쪽으로 밀어주는 빈 공간 — flexbox에서 나머지 공간을 차지 */}
                 <div style={{ flex: 1 }} />
 
-                {/* "새 운동 기록" 버튼 — 클릭하면 폼 표시/숨기기 토글 */}
+                {/* 즐겨찾기 불러오기 버튼 */}
                 <button
-                    onClick={() => setShowForm(!showForm)} // !showForm : true↔false 전환
+                    onClick={handleOpenFavorites}
                     style={{
-                        background: showForm ? colors.border : colors.primary, // 폼 열림 시 회색, 닫힘 시 파랑
-                        color: showForm ? colors.sub : '#fff',                 // 폼 열림 시 회색 글씨, 닫힘 시 흰 글씨
-                        border: 'none',         // 기본 테두리 제거
-                        borderRadius: 8,        // 모서리 둥글게
-                        padding: '8px 16px',    // 버튼 내부 여백
+                        background: '#FFFBEB',   // 연한 노란 배경
+                        color: '#B45309',        // 진한 노란 글씨
+                        border: `1px solid #F59E0B`,
+                        borderRadius: 8,
+                        padding: '8px 14px',
                         fontSize: 13,
                         fontWeight: 600,
-                        cursor: 'pointer',      // 마우스 커서를 손가락 모양으로 변경
+                        cursor: 'pointer',
                     }}
                 >
-                    {/* 폼이 열려있으면 "닫기", 닫혀있으면 "+ 새 운동 기록" */}
+                    ★ 즐겨찾기
+                </button>
+
+                {/* 새 운동 기록 버튼 */}
+                <button
+                    onClick={() => {
+                        setShowForm(!showForm);
+                        setEditingSession(null); // 수정 모드 취소
+                    }}
+                    style={{
+                        background: showForm ? colors.border : colors.primary,
+                        color: showForm ? colors.sub : '#fff',
+                        border: 'none',
+                        borderRadius: 8,
+                        padding: '8px 16px',
+                        fontSize: 13,
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                    }}
+                >
                     {showForm ? '닫기' : '+ 새 운동 기록'}
                 </button>
             </div>
 
 
-            {/* ── 새 운동 기록 입력 폼 ── */}
-            {/* showForm이 true일 때만 렌더링 (조건부 렌더링) */}
-            {/* && 연산자 : 왼쪽이 true면 오른쪽 JSX를 렌더링, false면 아무것도 렌더링 안 함 */}
-            {showForm && (
+            {/* ── 수정 폼 — editingSession이 있을 때만 표시 ── */}
+            {editingSession && (
                 <SessionForm
-                    onSessionCreated={handleSessionCreated} // 저장 완료 시 호출할 콜백 함수 전달
+                    editSession={editingSession}
+                    onSessionUpdated={handleSessionUpdated}
+                    onCancelEdit={handleCancelEdit}
                 />
             )}
+
+            {/* ── 새 운동 기록 폼 — showForm이 true이고 수정 중이 아닐 때 표시 ── */}
+            {showForm && !editingSession && (
+                <SessionForm onSessionCreated={handleSessionCreated} />
+            )}
+
+
+            {/* ── 검색·필터 바 ── */}
+            <div
+                style={{
+                    display: 'flex',
+                    gap: 8,
+                    marginBottom: 16,
+                    flexWrap: 'wrap',
+                    alignItems: 'center',
+                }}
+            >
+                {/* 텍스트 검색 입력 */}
+                <input
+                    type="text"
+                    placeholder="검색 (제목·메모·종목명)"
+                    value={searchQuery}
+                    onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                    style={{
+                        flex: '1 1 180px',
+                        padding: '8px 12px',
+                        border: `1px solid ${colors.border}`,
+                        borderRadius: 8,
+                        fontSize: 13,
+                        color: colors.text,
+                        background: '#fff',
+                        outline: 'none',
+                        boxSizing: 'border-box',
+                    }}
+                />
+
+                {/* 운동 부위 필터 드롭다운 */}
+                <select
+                    value={filterMuscle}
+                    onChange={e => { setFilterMuscle(e.target.value); setCurrentPage(1); }}
+                    style={{
+                        padding: '8px 10px',
+                        border: `1px solid ${colors.border}`,
+                        borderRadius: 8,
+                        fontSize: 13,
+                        color: colors.text,
+                        background: '#fff',
+                        outline: 'none',
+                        cursor: 'pointer',
+                    }}
+                >
+                    {MUSCLE_GROUP_OPTIONS.map(g => (
+                        <option key={g} value={g}>{g}</option>
+                    ))}
+                </select>
+
+                {/* 월별 필터 입력 — type="month" : "YYYY-MM" 선택기 */}
+                <input
+                    type="month"
+                    value={filterMonth}
+                    onChange={e => { setFilterMonth(e.target.value); setCurrentPage(1); }}
+                    style={{
+                        padding: '8px 10px',
+                        border: `1px solid ${colors.border}`,
+                        borderRadius: 8,
+                        fontSize: 13,
+                        color: filterMonth ? colors.text : colors.muted,
+                        background: '#fff',
+                        outline: 'none',
+                        cursor: 'pointer',
+                    }}
+                />
+
+                {/* 필터 초기화 버튼 — 필터가 하나라도 활성화된 경우에만 표시 */}
+                {(searchQuery || filterMuscle !== '전체' || filterMonth) && (
+                    <button
+                        onClick={() => {
+                            setSearchQuery('');
+                            setFilterMuscle('전체');
+                            setFilterMonth('');
+                            setCurrentPage(1);
+                        }}
+                        style={{
+                            background: 'none',
+                            border: `1px solid ${colors.border}`,
+                            borderRadius: 8,
+                            padding: '8px 12px',
+                            fontSize: 12,
+                            color: colors.sub,
+                            cursor: 'pointer',
+                        }}
+                    >
+                        초기화
+                    </button>
+                )}
+            </div>
 
 
             {/* ── 세션 목록 영역 ── */}
 
-            {/* 로딩 중일 때 표시 */}
+            {/* 로딩 중 */}
             {loading && (
-                <div
-                    style={{
-                        textAlign: 'center',  // 텍스트 가운데 정렬
-                        padding: '48px 0',    // 위아래 여백
-                        color: colors.sub,    // 보조 텍스트 색
-                        fontSize: 14,
-                    }}
-                >
+                <div style={{ textAlign: 'center', padding: '48px 0', color: colors.sub, fontSize: 14 }}>
                     불러오는 중...
                 </div>
             )}
 
-            {/* 오류 발생 시 메시지 표시 */}
-            {/* !loading : 로딩이 끝났을 때만 오류 표시 */}
+            {/* 오류 */}
             {!loading && errorMsg && (
                 <div
                     style={{
-                        background: '#FEF2F2',           // 연한 빨간 배경
-                        border: `1px solid ${colors.danger}`, // 빨간 테두리
+                        background: '#FEF2F2',
+                        border: `1px solid ${colors.danger}`,
                         borderRadius: 8,
                         padding: '12px 16px',
-                        color: colors.danger,            // 빨간 글씨
+                        color: colors.danger,
                         fontSize: 14,
                         marginBottom: 16,
                     }}
                 >
-                    {errorMsg} {/* 오류 메시지 텍스트 */}
+                    {errorMsg}
                 </div>
             )}
 
-            {/* 로딩 완료 + 오류 없음 + 세션이 없을 때 — 빈 상태 안내 카드 */}
+            {/* 빈 상태 안내 — 세션 없을 때 */}
             {!loading && !errorMsg && sessions.length === 0 && (
                 <div
                     style={{
-                        background: colors.card,             // 흰 카드 배경
-                        border: `1px solid ${colors.border}`, // 연한 회색 테두리
-                        borderRadius: 12,                    // 모서리 둥글게
-                        padding: '48px 24px',                // 넉넉한 안쪽 여백
-                        textAlign: 'center',                 // 내용 가운데 정렬
+                        background: colors.card,
+                        border: `1px solid ${colors.border}`,
+                        borderRadius: 12,
+                        padding: '48px 24px',
+                        textAlign: 'center',
                     }}
                 >
                     <div style={{ fontSize: 48, marginBottom: 16 }}>💪</div>
@@ -289,22 +469,224 @@ function WorkoutPage() {
                 </div>
             )}
 
-            {/* 세션 카드 목록 — 세션이 있을 때만 렌더링 */}
-            {/* sessions.length > 0 : 배열에 요소가 하나 이상 있을 때 true */}
-            {!loading && sessions.length > 0 && (
-                // 세션 카드들을 세로로 쌓는 컨테이너
+            {/* 검색 결과 없음 — 세션은 있지만 필터 결과가 없을 때 */}
+            {!loading && sessions.length > 0 && filteredSessions.length === 0 && (
+                <div
+                    style={{
+                        textAlign: 'center',
+                        padding: '32px 0',
+                        color: colors.sub,
+                        fontSize: 14,
+                    }}
+                >
+                    검색 조건에 맞는 운동 기록이 없습니다.
+                </div>
+            )}
+
+            {/* 세션 카드 목록 */}
+            {!loading && pagedSessions.length > 0 && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                    {/* sessions 배열의 각 요소를 SessionCard로 변환해 렌더링 */}
-                    {/* map() : 배열을 JSX 요소 배열로 변환하는 React의 핵심 패턴 */}
-                    {sessions.map(session => (
+                    {pagedSessions.map(session => (
                         <SessionCard
-                            key={session.id}           // React 렌더링 최적화를 위한 고유 키
-                            session={session}          // 세션 데이터 전달 (props)
-                            onDelete={handleDeleteSession}   // 삭제 콜백 전달
-                            onAnalyze={handleAnalyzeSession} // AI 분석 콜백 전달
-                            isAnalyzing={analyzingId === session.id} // 이 세션이 분석 중인지 여부
+                            key={session.id}
+                            session={session}
+                            onDelete={handleDeleteSession}
+                            onAnalyze={handleAnalyzeSession}
+                            isAnalyzing={analyzingId === session.id}
+                            onEdit={handleEditSession}
+                            onToggleFavorite={handleToggleFavorite}
                         />
                     ))}
+                </div>
+            )}
+
+
+            {/* ── 페이지네이션 컨트롤 ── */}
+            {!loading && totalPages > 1 && (
+                <div
+                    style={{
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        gap: 8,
+                        marginTop: 24,
+                    }}
+                >
+                    {/* 이전 페이지 버튼 */}
+                    <button
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        disabled={effectivePage === 1} // 첫 페이지면 비활성화
+                        style={{
+                            background: 'none',
+                            border: `1px solid ${colors.border}`,
+                            borderRadius: 6,
+                            padding: '6px 12px',
+                            fontSize: 13,
+                            cursor: effectivePage === 1 ? 'not-allowed' : 'pointer',
+                            color: effectivePage === 1 ? colors.muted : colors.text,
+                        }}
+                    >
+                        ‹ 이전
+                    </button>
+
+                    {/* 페이지 번호 버튼들 */}
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                        <button
+                            key={page}
+                            onClick={() => setCurrentPage(page)}
+                            style={{
+                                background: page === effectivePage ? colors.primary : 'none',
+                                color: page === effectivePage ? '#fff' : colors.text,
+                                border: `1px solid ${page === effectivePage ? colors.primary : colors.border}`,
+                                borderRadius: 6,
+                                padding: '6px 12px',
+                                fontSize: 13,
+                                cursor: 'pointer',
+                                fontWeight: page === effectivePage ? 700 : 400,
+                            }}
+                        >
+                            {page}
+                        </button>
+                    ))}
+
+                    {/* 다음 페이지 버튼 */}
+                    <button
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                        disabled={effectivePage === totalPages} // 마지막 페이지면 비활성화
+                        style={{
+                            background: 'none',
+                            border: `1px solid ${colors.border}`,
+                            borderRadius: 6,
+                            padding: '6px 12px',
+                            fontSize: 13,
+                            cursor: effectivePage === totalPages ? 'not-allowed' : 'pointer',
+                            color: effectivePage === totalPages ? colors.muted : colors.text,
+                        }}
+                    >
+                        다음 ›
+                    </button>
+                </div>
+            )}
+
+
+            {/* ══════════════════════════════════════
+                즐겨찾기 패널 — showFavorites=true 일 때 오버레이로 표시
+                ══════════════════════════════════════ */}
+            {showFavorites && (
+                // 반투명 어두운 배경 오버레이 — 클릭하면 패널 닫힘
+                <div
+                    onClick={() => setShowFavorites(false)}
+                    style={{
+                        position: 'fixed',      // 화면 전체를 덮음
+                        top: 0, left: 0, right: 0, bottom: 0,
+                        background: 'rgba(0,0,0,0.4)', // 40% 투명도 검정
+                        zIndex: 100,            // 다른 요소 위에 표시
+                        display: 'flex',
+                        justifyContent: 'flex-end', // 패널을 오른쪽에 배치
+                    }}
+                >
+                    {/* 패널 본체 — 오버레이 클릭 이벤트가 패널까지 전파되지 않도록 차단 */}
+                    <div
+                        onClick={e => e.stopPropagation()}
+                        style={{
+                            background: '#fff',
+                            width: 360,         // 패널 너비
+                            maxWidth: '90vw',   // 작은 화면에서 90%로 제한
+                            height: '100%',
+                            overflowY: 'auto',  // 내용이 길면 스크롤
+                            padding: 20,
+                            boxShadow: '-4px 0 20px rgba(0,0,0,0.15)', // 왼쪽 그림자
+                        }}
+                    >
+                        {/* 패널 헤더 */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: colors.text }}>
+                                ★ 즐겨찾기 루틴
+                            </h3>
+                            {/* 닫기 버튼 */}
+                            <button
+                                onClick={() => setShowFavorites(false)}
+                                style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    fontSize: 20,
+                                    cursor: 'pointer',
+                                    color: colors.muted,
+                                    lineHeight: 1,
+                                }}
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        {/* 설명 텍스트 */}
+                        <p style={{ fontSize: 12, color: colors.sub, marginBottom: 16 }}>
+                            ★ 버튼으로 저장한 운동 루틴입니다.<br />
+                            자주 하는 운동을 즐겨찾기해 빠르게 참고하세요.
+                        </p>
+
+                        {/* 즐겨찾기 로드 중 */}
+                        {loadingFavorites && (
+                            <div style={{ textAlign: 'center', color: colors.sub, padding: 24 }}>
+                                불러오는 중...
+                            </div>
+                        )}
+
+                        {/* 즐겨찾기 없음 */}
+                        {!loadingFavorites && favorites.length === 0 && (
+                            <div style={{ textAlign: 'center', color: colors.sub, padding: 24 }}>
+                                즐겨찾기한 루틴이 없습니다.<br />
+                                카드의 ☆ 버튼을 눌러 저장해보세요!
+                            </div>
+                        )}
+
+                        {/* 즐겨찾기 세션 카드 목록 */}
+                        {!loadingFavorites && favorites.map(session => {
+                            // 종목 이름 목록 (중복 제거)
+                            const names = [...new Set(session.sets.map(s => s.exercise_name))];
+                            return (
+                                <div
+                                    key={session.id}
+                                    style={{
+                                        background: colors.bg,
+                                        border: `1px solid ${colors.border}`,
+                                        borderLeft: '4px solid #F59E0B', // 즐겨찾기 금색 강조선
+                                        borderRadius: 8,
+                                        padding: '12px 14px',
+                                        marginBottom: 10,
+                                    }}
+                                >
+                                    {/* 날짜 */}
+                                    <div style={{ fontSize: 11, color: colors.muted, marginBottom: 4 }}>
+                                        {session.session_date}
+                                    </div>
+                                    {/* 제목 */}
+                                    <div style={{ fontSize: 14, fontWeight: 700, color: colors.text, marginBottom: 6 }}>
+                                        {session.title || '운동 기록'}
+                                    </div>
+                                    {/* 종목 태그 */}
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                                        {names.map(name => (
+                                            <span
+                                                key={name}
+                                                style={{
+                                                    background: colors.primaryLight,
+                                                    color: colors.primary,
+                                                    borderRadius: 20,
+                                                    padding: '2px 8px',
+                                                    fontSize: 11,
+                                                    fontWeight: 500,
+                                                }}
+                                            >
+                                                {name}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            );
+                        })}
+
+                    </div>
                 </div>
             )}
 
@@ -312,4 +694,4 @@ function WorkoutPage() {
     );
 }
 
-export default WorkoutPage; // App.jsx의 라우팅에서 import해 /workout 경로에 렌더링
+export default WorkoutPage;

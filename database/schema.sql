@@ -140,6 +140,12 @@ CREATE TABLE workout_sessions
     -- Claude AI가 이 세션을 분석한 결과 텍스트를 저장
     -- 운동 기록 저장 시 Claude API를 호출하고 응답을 여기에 저장
 
+      -- ── 즐겨찾기 (루틴 저장) ──
+    is_favorite   TINYINT(1)      NOT NULL DEFAULT 0,
+    -- 0 = 일반 기록, 1 = 즐겨찾기로 저장된 루틴
+    -- TINYINT(1) : MySQL에서 Boolean 대용으로 사용하는 관례 (0=false, 1=true)
+    -- 자주 하는 루틴을 즐겨찾기해두면 '★ 즐겨찾기' 패널에서 빠르게 참고 가능
+
     -- ── 타임스탬프 ──
     created_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -201,6 +207,11 @@ CREATE TABLE workout_sets
 
     rest_sec      SMALLINT UNSIGNED         DEFAULT NULL,
     -- 이 세트 후 휴식 시간 (초 단위) — 기록 분석 시 활용 가능
+    
+      muscle_group    VARCHAR(50)     DEFAULT NULL,
+    -- 이 운동의 주요 운동 부위 (예: '가슴', '등', '하체', '어깨', '팔', '코어', '유산소', '기타')
+    -- NULL 허용 — 선택 입력 (부위를 지정하지 않아도 저장 가능)
+    -- 검색/필터 기능에서 부위별 운동 기록 조회에 활용됨
 
     -- ── 타임스탬프 ──
     created_at    DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP,

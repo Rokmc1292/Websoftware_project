@@ -89,3 +89,69 @@ export const analyzeSession = async (sessionId) => {
     const response = await apiClient.post(`/workout/sessions/${sessionId}/analyze`);
     return response.data;
 };
+
+
+// ─────────────────────────────────────────────
+// 운동 세션 수정
+// PUT /api/workout/sessions/:id
+// ─────────────────────────────────────────────
+// 기존 세션의 내용을 완전히 교체 (세트도 삭제 후 새로 삽입)
+// 매개변수 sessionId : 수정할 세션의 고유 ID
+// 매개변수 sessionData : createSession과 동일한 형태의 객체
+// 반환값: { message: "...", session: { ... } }
+export const updateSession = async (sessionId, sessionData) => {
+    // PUT 요청 — 두 번째 인자가 요청 Body(JSON)로 전달됨
+    const response = await apiClient.put(`/workout/sessions/${sessionId}`, sessionData);
+    return response.data;
+};
+
+
+// ─────────────────────────────────────────────
+// 즐겨찾기 토글
+// POST /api/workout/sessions/:id/favorite
+// ─────────────────────────────────────────────
+// 세션의 즐겨찾기 상태를 반전 (True → False, False → True)
+// 매개변수 sessionId : 즐겨찾기를 토글할 세션의 고유 ID
+// 반환값: { is_favorite: true/false }
+export const toggleFavorite = async (sessionId) => {
+    const response = await apiClient.post(`/workout/sessions/${sessionId}/favorite`);
+    return response.data;
+};
+
+
+// ─────────────────────────────────────────────
+// 즐겨찾기 세션 목록 조회
+// GET /api/workout/favorites
+// ─────────────────────────────────────────────
+// 현재 로그인한 사용자의 즐겨찾기 세션만 반환
+// 반환값: { sessions: [ ... ] }
+export const getFavorites = async () => {
+    const response = await apiClient.get('/workout/favorites');
+    return response.data;
+};
+
+
+// ─────────────────────────────────────────────
+// 이전에 기록한 운동 종목 이름 목록 조회 (자동완성용)
+// GET /api/workout/exercises
+// ─────────────────────────────────────────────
+// 사용자가 과거에 기록한 모든 종목 이름을 중복 없이 반환
+// 반환값: { exercises: ["벤치프레스", "스쿼트", ...] }
+export const getExercises = async () => {
+    const response = await apiClient.get('/workout/exercises');
+    return response.data;
+};
+
+
+// ─────────────────────────────────────────────
+// 특정 종목의 개인 최고 기록 조회
+// GET /api/workout/exercises/:name/best
+// ─────────────────────────────────────────────
+// 해당 종목의 역대 최고 중량과 최고 반복 횟수를 반환
+// 매개변수 exerciseName : 종목 이름 (예: "벤치프레스")
+// 반환값: { exercise_name: "...", best_weight_kg: 100.0, best_reps: 12 }
+export const getExerciseBest = async (exerciseName) => {
+    // URL 인코딩 : 종목 이름에 한글·공백이 있을 경우를 대비해 encodeURIComponent 사용
+    const response = await apiClient.get(`/workout/exercises/${encodeURIComponent(exerciseName)}/best`);
+    return response.data;
+};
