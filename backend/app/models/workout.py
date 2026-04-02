@@ -116,6 +116,10 @@ class WorkoutSession(db.Model):
             'memo': self.memo,  # 메모 (없으면 None)
             'duration_min': self.duration_min,  # 운동 시간(분) (없으면 None)
             'ai_feedback': self.ai_feedback,  # AI 분석 결과 (없으면 None)
+            # bool() : DB에서 0/1로 저장된 값을 Python True/False로 변환
+            # → JSON 응답에서는 true/false가 됨 — 프론트엔드가 is_favorite 상태를 올바르게 읽음
+            # 이 필드가 없으면 새로고침 시 즐겨찾기 표시가 항상 ☆로 초기화되는 버그 발생
+            'is_favorite': bool(self.is_favorite),
             'created_at': self.created_at.isoformat(),  # 생성 일시 문자열
             # 관련된 모든 세트를 리스트로 변환 — 각 세트도 to_dict()로 변환
             'sets': [s.to_dict() for s in self.sets],

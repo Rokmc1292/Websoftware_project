@@ -80,6 +80,12 @@ function WorkoutPage() {
     // loadingFavorites : 즐겨찾기 로드 중 여부
     const [loadingFavorites, setLoadingFavorites] = useState(false);
 
+    // ── 루틴 불러오기 상태 ──
+
+    // templateSession : 즐겨찾기에서 불러온 세션 (종목·세트 구조를 새 폼에 복사하는 용도)
+    // null이면 일반 새 세션 입력 모드, 값이 있으면 루틴 불러오기 모드
+    const [templateSession, setTemplateSession] = useState(null);
+
 
     // ─────────────────────────────────────────────
     // 마운트 시 세션 목록 로드
@@ -192,9 +198,23 @@ function WorkoutPage() {
 
     // handleEditSession : 세션 수정 버튼 클릭 — 수정 폼 열기
     const handleEditSession = (session) => {
-        setEditingSession(session); // 수정할 세션 설정
-        setShowForm(false);         // 새 세션 폼은 닫기
+        setEditingSession(session);    // 수정할 세션 설정
+        setTemplateSession(null);      // 루틴 불러오기 상태 초기화 (충돌 방지)
+        setShowForm(false);            // 새 세션 폼은 닫기
         // 스크롤을 페이지 상단으로 이동해 수정 폼이 보이도록 함
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+
+    // handleLoadRoutine : 즐겨찾기 패널에서 "불러오기" 버튼 클릭 시 실행
+    // 선택한 즐겨찾기 세션의 종목·세트 구조를 새 세션 입력 폼에 복사
+    // session : 불러올 즐겨찾기 세션 객체
+    const handleLoadRoutine = (session) => {
+        setTemplateSession(session);   // 템플릿으로 사용할 세션 지정 → SessionForm이 자동으로 폼 채움
+        setEditingSession(null);       // 수정 모드 초기화 (충돌 방지)
+        setShowForm(true);             // 새 세션 입력 폼 열기
+        setShowFavorites(false);       // 즐겨찾기 패널 닫기
+        // 스크롤을 페이지 상단으로 이동해 폼이 보이도록 함
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
@@ -297,7 +317,8 @@ function WorkoutPage() {
                 <button
                     onClick={() => {
                         setShowForm(!showForm);
-                        setEditingSession(null); // 수정 모드 취소
+                        setEditingSession(null);    // 수정 모드 취소
+                        setTemplateSession(null);   // 루틴 불러오기 모드도 취소 (폼 닫을 때 초기화)
                     }}
                     style={{
                         background: showForm ? colors.border : colors.primary,
@@ -325,8 +346,15 @@ function WorkoutPage() {
             )}
 
             {/* ── 새 운동 기록 폼 — showForm이 true이고 수정 중이 아닐 때 표시 ── */}
+            {/* templateSession이 있으면 루틴 불러오기 모드로 폼이 열림 */}
             {showForm && !editingSession && (
-                <SessionForm onSessionCreated={handleSessionCreated} />
+                <SessionForm
+                    onSessionCreated={(newSession) => {
+                        handleSessionCreated(newSession);
+                        setTemplateSession(null); // 저장 완료 후 템플릿 상태 초기화
+                    }}
+                    templateSession={templateSession} // 루틴 불러오기 템플릿 전달
+                />
             )}
 
 
@@ -642,7 +670,7 @@ function WorkoutPage() {
 
                         {/* 즐겨찾기 세션 카드 목록 */}
                         {!loadingFavorites && favorites.map(session => {
-                            // 종목 이름 목록 (중복 제거)
+                            // 종목 이름 목록 (중복 제거, 작성 순서 유지)
                             const names = [...new Set(session.sets.map(s => s.exercise_name))];
                             return (
                                 <div
@@ -656,14 +684,36 @@ function WorkoutPage() {
                                         marginBottom: 10,
                                     }}
                                 >
-                                    {/* 날짜 */}
-                                    <div style={{ fontSize: 11, color: colors.muted, marginBottom: 4 }}>
-                                        {session.session_date}
+                                    {/* 카드 상단: 날짜 + 불러오기 버튼 */}
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                                        {/* 날짜 */}
+                                        <div style={{ fontSize: 11, color: colors.muted }}>
+                                            {session.session_date}
+                                        </div>
+
+                                        {/* 불러오기 버튼 — 클릭하면 이 루틴의 종목·세트를 새 세션 폼에 복사 */}
+                                        <button
+                                            onClick={() => handleLoadRoutine(session)}
+                                            style={{
+                                                background: '#F59E0B',    // 금색 배경 — 즐겨찾기와 같은 계열
+                                                color: '#fff',            // 흰 글씨
+                                                border: 'none',
+                                                borderRadius: 6,
+                                                padding: '4px 10px',
+                                                fontSize: 11,
+                                                fontWeight: 700,
+                                                cursor: 'pointer',
+                                            }}
+                                        >
+                                            불러오기
+                                        </button>
                                     </div>
+
                                     {/* 제목 */}
                                     <div style={{ fontSize: 14, fontWeight: 700, color: colors.text, marginBottom: 6 }}>
                                         {session.title || '운동 기록'}
                                     </div>
+
                                     {/* 종목 태그 */}
                                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                                         {names.map(name => (
@@ -681,6 +731,12 @@ function WorkoutPage() {
                                                 {name}
                                             </span>
                                         ))}
+                                    </div>
+
+                                    {/* 세트 수 요약 — 이 루틴에 몇 세트가 포함되어 있는지 미리보기 */}
+                                    <div style={{ fontSize: 11, color: colors.muted, marginTop: 6 }}>
+                                        {/* 종목 수, 세트 수를 간단히 요약해 루틴 규모를 확인할 수 있도록 함 */}
+                                        {names.length}종목 · 총 {session.sets.length}세트
                                     </div>
                                 </div>
                             );

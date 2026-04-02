@@ -1,16 +1,18 @@
-// SessionForm.jsx — 새 운동 기록 입력 및 기존 기록 수정 폼 컴포넌트
+// SessionForm.jsx — 새 운동 기록 입력 / 기존 기록 수정 / 루틴 불러오기 폼 컴포넌트
 //
 // 역할:
 //   - 운동 날짜·제목·소요시간·메모 입력 필드 제공
 //   - 종목별 세트 추가 / 삭제, 운동 부위(muscle_group) 선택
 //   - 종목 이름 자동완성 (이전에 기록한 종목 목록 제공)
 //   - 새 세션 저장 (createSession) 또는 기존 세션 수정 (updateSession)
+//   - 즐겨찾기 루틴을 템플릿으로 불러와 새 세션으로 빠르게 입력 (templateSession)
 //
 // Props:
 //   onSessionCreated  : 새 세션 저장 완료 후 부모에게 세션 객체를 전달하는 콜백
 //   editSession       : 수정할 세션 객체 (없으면 새 세션 입력 모드)
 //   onSessionUpdated  : 세션 수정 완료 후 부모에게 업데이트된 세션 객체를 전달하는 콜백
 //   onCancelEdit      : 수정 취소 버튼 클릭 시 부모에게 취소를 알리는 콜백
+//   templateSession   : 루틴 불러오기로 가져온 세션 (종목·세트 구조만 복사, 날짜는 오늘로 초기화)
 
 // useState   : 폼 입력값과 UI 상태를 관리하는 React 훅
 // useEffect  : 컴포넌트 마운트 시 / 특정 값 변경 시 코드를 실행하는 React 훅
@@ -31,8 +33,11 @@ const MUSCLE_GROUPS = ['', '가슴', '등', '하체', '어깨', '팔', '코어',
 
 
 // SessionForm 컴포넌트
-// editSession / onSessionUpdated / onCancelEdit 은 선택 props (없으면 새 세션 모드)
-function SessionForm({ onSessionCreated, editSession = null, onSessionUpdated, onCancelEdit }) {
+// editSession / onSessionUpdated / onCancelEdit / templateSession 은 선택 props
+// 모두 없으면 → 새 세션 입력 모드
+// editSession 있으면 → 기존 세션 수정 모드
+// templateSession 있으면 → 루틴 불러오기 모드 (종목·세트만 복사, 새 세션으로 저장)
+function SessionForm({ onSessionCreated, editSession = null, onSessionUpdated, onCancelEdit, templateSession = null }) {
 
     // ─────────────────────────────────────────────
     // 오늘 날짜를 YYYY-MM-DD 형식으로 만들기
@@ -43,6 +48,10 @@ function SessionForm({ onSessionCreated, editSession = null, onSessionUpdated, o
 
     // isEditMode : 수정 모드인지 여부 — editSession prop이 있으면 수정 모드
     const isEditMode = editSession !== null;
+
+    // isTemplateMode : 루틴 불러오기 모드인지 여부 — templateSession prop이 있으면 템플릿 모드
+    // 템플릿 모드에서는 종목·세트만 복사하고 새 세션으로 저장 (editMode와 구분)
+    const isTemplateMode = templateSession !== null && !isEditMode;
 
 
     // ─────────────────────────────────────────────
@@ -140,6 +149,51 @@ function SessionForm({ onSessionCreated, editSession = null, onSessionUpdated, o
             setExercises([{ name: '', muscle_group: '', sets: [{ weight_kg: '', reps: '' }] }]);
         }
     }, [editSession]); // editSession이 바뀔 때마다 다시 실행
+
+
+    // ─────────────────────────────────────────────
+    // 루틴 불러오기: templateSession prop 변경 시 종목·세트만 복사
+    // ─────────────────────────────────────────────
+
+    useEffect(() => {
+        if (!templateSession) return; // 템플릿이 없으면 실행 안 함
+
+        // 날짜·제목·메모는 오늘/빈값으로 초기화 — 새 세션이므로 과거 날짜를 가져오면 안 됨
+        setSessionDate(today);   // 운동 날짜는 오늘로 자동 설정
+        setTitle('');            // 제목은 직접 입력하도록 비워둠
+        setMemo('');             // 메모도 초기화
+        setDurationMin('');      // 소요 시간도 초기화
+
+        // 종목·세트 구조만 템플릿에서 복사
+        if (templateSession.sets && templateSession.sets.length > 0) {
+            // 종목 이름 목록 (중복 제거, 작성 순서 유지)
+            const names = [...new Set(templateSession.sets.map(s => s.exercise_name))];
+
+            // 종목별로 세트를 묶어 exercises 상태 형식으로 변환
+            const grouped = names.map(name => {
+                // 이 종목의 세트만 필터링해 중량·횟수를 문자열로 변환
+                const exSets = templateSession.sets
+                    .filter(s => s.exercise_name === name)
+                    .map(s => ({
+                        // 문자열로 변환해야 input value와 타입이 일치함 (number input은 string도 허용)
+                        weight_kg: s.weight_kg != null ? String(s.weight_kg) : '',
+                        reps: s.reps != null ? String(s.reps) : '',
+                    }));
+
+                return {
+                    name,                          // 종목 이름 복사
+                    // 첫 번째 세트의 muscle_group으로 종목 부위를 대표
+                    muscle_group: templateSession.sets.find(s => s.exercise_name === name)?.muscle_group || '',
+                    sets: exSets,                  // 세트 목록 복사
+                };
+            });
+
+            setExercises(grouped); // 복사된 종목·세트 구조로 폼 채우기
+        } else {
+            // 세트가 없는 템플릿이면 빈 입력 칸 하나 준비
+            setExercises([{ name: '', muscle_group: '', sets: [{ weight_kg: '', reps: '' }] }]);
+        }
+    }, [templateSession]); // templateSession이 바뀔 때마다 실행 (불러오기 클릭 시)
 
 
     // ─────────────────────────────────────────────
@@ -309,15 +363,19 @@ function SessionForm({ onSessionCreated, editSession = null, onSessionUpdated, o
         <div
             style={{
                 background: colors.card,
-                border: `1px solid ${isEditMode ? colors.primary : colors.border}`,
+                // 모드별 테두리 색 구분: 수정=파랑, 루틴불러오기=노랑(즐겨찾기 색), 새 세션=기본
+                border: `1px solid ${isEditMode ? colors.primary : isTemplateMode ? '#F59E0B' : colors.border}`,
+                // 루틴 불러오기 모드에서 왼쪽 강조선으로 "즐겨찾기에서 불러온 것"임을 표시
+                borderLeft: isTemplateMode ? '4px solid #F59E0B' : undefined,
                 borderRadius: 12,
                 padding: 20,
                 marginBottom: 20,
             }}
         >
-            {/* 폼 제목 — 수정 모드이면 "운동 기록 수정" */}
+            {/* 폼 제목 — 모드에 따라 다르게 표시 */}
             <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 700, color: colors.text }}>
-                {isEditMode ? '✏️ 운동 기록 수정' : '새 운동 기록'}
+                {/* 수정 모드: "✏️ 운동 기록 수정" / 루틴 불러오기 모드: "★ 루틴 불러오기" / 새 세션: "새 운동 기록" */}
+                {isEditMode ? '✏️ 운동 기록 수정' : isTemplateMode ? '★ 루틴 불러오기' : '새 운동 기록'}
             </h3>
 
             {/* ── 세션 기본 정보 입력 ── */}
