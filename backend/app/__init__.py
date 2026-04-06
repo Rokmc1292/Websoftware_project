@@ -63,10 +63,16 @@ def create_app():
     from .routes.sleep import sleep_bp
     app.register_blueprint(sleep_bp, url_prefix='/api')
 
+# ✅ Fitbit 블루프린트 추가
+    from .routes.fitbit import fitbit_bp
+    app.register_blueprint(fitbit_bp)
+
     # ── 앱 컨텍스트 안에서 테이블 생성 ──
     # app.app_context() : Flask 앱 컨텍스트 — db, jwt 등의 확장이 활성화된 환경
     # with 블록 안에서만 db.create_all() 등을 사용할 수 있음
     with app.app_context():
+
+        
         # db.create_all() : models 폴더의 클래스를 기반으로 DB 테이블을 생성
         # 이미 테이블이 있으면 건너뜀 (덮어쓰지 않음)
         db.create_all()

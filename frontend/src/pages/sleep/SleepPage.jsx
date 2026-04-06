@@ -1,11 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { colors } from "../../styles/colors.js";
 import {
-  getSleepRecords,
-  getSleepRecordByDate,
-  saveSleepRecord,
   getSleepCoachFeedback,
+  getSleepRecordByDate,
+  getSleepRecords,
+  saveSleepRecord,
 } from "../../api/sleepApi.js";
+import {
+  connectFitbit,
+  getFitbitSleepByDate,
+  getFitbitStatus,
+} from "../../api/wearableApi.js";
+import { colors } from "../../styles/colors.js";
 import "./SleepPage.css";
 
 const defaultWakeGoals = [
@@ -761,6 +766,7 @@ export default function SleepPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isLoadingRecord, setIsLoadingRecord] = useState(false);
   const [wearableStatus, setWearableStatus] = useState("미연동");
+  const [isFitbitConnected, setIsFitbitConnected] = useState(false);
 
   const sleepHours = useMemo(
     () => calculateSleepHours(bedHour, bedMinute, wakeHour, wakeMinute),
@@ -962,6 +968,67 @@ export default function SleepPage() {
     };
   }, [selectedDate]);
 
+  useEffect(() => {
+    const checkFitbitStatus = async () => {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const fitbitResult = params.get("fitbit");
+
+        const statusData = await getFitbitStatus();
+
+        if (statusData.success && statusData.connected) {
+          setIsFitbitConnected(true);
+          setWearableStatus("연동 완료");
+        } else {
+          setIsFitbitConnected(false);
+          setWearableStatus("미연동");
+        }
+
+        if (fitbitResult) {
+          window.history.replaceState(
+            {},
+            document.title,
+            window.location.pathname,
+          );
+        }
+      } catch (error) {
+        console.error("Fitbit 상태 확인 오류:", error);
+        setIsFitbitConnected(false);
+        setWearableStatus("미연동");
+      }
+    };
+
+    checkFitbitStatus();
+  }, []);
+
+  useEffect(() => {
+    const loadFitbitSleepData = async () => {
+      if (!isFitbitConnected || !selectedDate) return;
+
+      try {
+        const sleepData = await getFitbitSleepByDate(selectedDate);
+
+        if (sleepData.success && sleepData.record) {
+          const record = sleepData.record;
+
+          setBedHour(Number(record.bedHour ?? 23));
+          setBedMinute(Number(record.bedMinute ?? 30));
+          setWakeHour(Number(record.wakeHour ?? 7));
+          setWakeMinute(Number(record.wakeMinute ?? 30));
+
+          setMemo((prev) => {
+            if (prev?.trim()) return prev;
+            return "Fitbit에서 자동으로 불러온 수면 기록입니다.";
+          });
+        }
+      } catch (error) {
+        console.error("Fitbit 수면 데이터 불러오기 오류:", error);
+      }
+    };
+
+    loadFitbitSleepData();
+  }, [isFitbitConnected, selectedDate]);
+
   const handleSaveRecord = async () => {
     const payload = {
       date: selectedDate,
@@ -1013,8 +1080,29 @@ export default function SleepPage() {
     }
   };
 
-  const handleWearableSync = () => {
-    setWearableStatus("연동 준비중");
+  const handleWearableSync = async () => {
+    try {
+      setWearableStatus("연동 중");
+
+      const data = await connectFitbit();
+      console.log("Fitbit connect 응답:", data);
+
+      if (data.success && data.authUrl) {
+        window.location.href = data.authUrl;
+        return;
+      }
+
+      alert(data.message || "authUrl이 없음");
+      setWearableStatus("미연동");
+    } catch (error) {
+      console.error("Fitbit 연동 오류:", error);
+      alert(
+        error?.response?.data?.message ||
+          error?.message ||
+          "Fitbit connect 요청 실패",
+      );
+      setWearableStatus("미연동");
+    }
   };
 
   const handleAnalyzeWithAI = async () => {
@@ -1205,8 +1293,8 @@ export default function SleepPage() {
                       {isAnalyzing
                         ? "저장 및 AI 분석 중..."
                         : isLoadingRecord
-                        ? "기록 불러오는 중..."
-                        : "저장 후 AI 분석하기"}
+                          ? "기록 불러오는 중..."
+                          : "저장 후 AI 분석하기"}
                     </button>
                   </div>
                 </div>
@@ -1350,7 +1438,9 @@ export default function SleepPage() {
                       <div className="sleep-ai-section-label">
                         오늘 상태 요약
                       </div>
-                      <div className="sleep-ai-summary">{aiCoachData.summary}</div>
+                      <div className="sleep-ai-summary">
+                        {aiCoachData.summary}
+                      </div>
                     </div>
 
                     <div className="sleep-ai-section">
