@@ -63,6 +63,12 @@ def create_app():
     from .routes.sleep import sleep_bp
     app.register_blueprint(sleep_bp, url_prefix='/api')
 
+    # stats 블루프린트 등록 — /api/stats/* 경로 담당
+    # 예: GET /api/stats/monthly?year=2024&month=6
+    #     GET /api/stats/daily?date=2024-06-01
+    from .routes.stats import stats_bp
+    app.register_blueprint(stats_bp, url_prefix='/api/stats')
+
     # ── 앱 컨텍스트 안에서 테이블 생성 ──
     # app.app_context() : Flask 앱 컨텍스트 — db, jwt 등의 확장이 활성화된 환경
     # with 블록 안에서만 db.create_all() 등을 사용할 수 있음
