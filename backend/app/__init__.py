@@ -60,6 +60,9 @@ def create_app():
     from .routes.diet import diet_bp
     app.register_blueprint(diet_bp, url_prefix='/api/diet')
 
+    from .routes.profile import profile_bp
+    app.register_blueprint(profile_bp, url_prefix='/api/profile')
+
     from .routes.sleep import sleep_bp
     app.register_blueprint(sleep_bp, url_prefix='/api')
 

@@ -1,6 +1,7 @@
 // Header.jsx — 로그인 후 모든 페이지 상단에 고정으로 표시되는 헤더 바 컴포넌트
 // 로고 / 탭 네비게이션 / 사용자 아바타(로그아웃) 세 영역으로 구성됨
 
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 // useNavigate  : 버튼 클릭 시 다른 경로로 이동시키는 함수를 반환하는 훅
 // useLocation  : 현재 브라우저 URL 정보를 가져오는 훅 — 어떤 탭이 활성화됐는지 판단할 때 사용
@@ -28,6 +29,8 @@ function Header() {
   // location : 현재 URL 정보 객체 — location.pathname으로 현재 경로를 알 수 있음
   // 예: /workout 페이지라면 location.pathname === '/workout'
   const location = useLocation();
+  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+  const accountMenuRef = useRef(null);
 
   // ─────────────────────────────────────────────
   // 이벤트 핸들러
@@ -44,6 +47,23 @@ function Header() {
     // localStorage에서 JWT 토큰을 삭제하고 window.location.href로 /login 이동
     logout();
   };
+
+  useEffect(() => {
+    const onClickOutside = (event) => {
+      if (accountMenuRef.current && !accountMenuRef.current.contains(event.target)) {
+        setIsAccountMenuOpen(false);
+      }
+    };
+    const onEscape = (event) => {
+      if (event.key === 'Escape') setIsAccountMenuOpen(false);
+    };
+    window.addEventListener('mousedown', onClickOutside);
+    window.addEventListener('keydown', onEscape);
+    return () => {
+      window.removeEventListener('mousedown', onClickOutside);
+      window.removeEventListener('keydown', onEscape);
+    };
+  }, []);
 
   // ─────────────────────────────────────────────
   // JSX 반환 — 헤더 바의 HTML 구조
@@ -150,28 +170,93 @@ function Header() {
           })}
         </nav>
 
-        {/* ── 오른쪽: 사용자 아바타 (로그아웃 버튼 역할) ── */}
-        <div
-          onClick={handleLogout} // 클릭 시 로그아웃
-          title="로그아웃"        // 마우스를 올리면 나타나는 툴팁 텍스트
-          style={{
-            width: 34,                          // 원형 아바타 너비
-            height: 34,                         // 원형 아바타 높이
-            background: colors.primaryLight,    // 연한 파랑-보라 배경
-            borderRadius: '50%',                // 50% = 완전한 원
-            display: 'flex',                    // 아이콘을 정중앙에 배치하기 위해 Flexbox 사용
-            alignItems: 'center',               // 세로 중앙
-            justifyContent: 'center',           // 가로 중앙
-            fontSize: 16,                       // 아이콘 크기
-            cursor: 'pointer',                  // 손가락 커서 — 클릭 가능함을 표시
-            userSelect: 'none',                 // 클릭 시 텍스트 선택 방지
-            transition: 'opacity 0.15s ease',   // hover 시 투명도 변화 부드럽게
-          }}
-          // 마우스를 올렸을 때 약간 흐리게 — 클릭 가능함을 시각적으로 강조
-          onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.75')}
-          onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
-        >
-          👤 {/* 기본 사용자 아이콘 — 나중에 프로필 사진으로 교체 가능 */}
+        {/* ── 오른쪽: 사용자 아바타 메뉴 ── */}
+        <div ref={accountMenuRef} style={{ position: 'relative' }}>
+          <button
+            type="button"
+            onClick={() => setIsAccountMenuOpen((prev) => !prev)}
+            title="계정 메뉴"
+            aria-haspopup="menu"
+            aria-expanded={isAccountMenuOpen}
+            style={{
+              width: 34,
+              height: 34,
+              background: colors.primaryLight,
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 16,
+              cursor: 'pointer',
+              userSelect: 'none',
+              transition: 'opacity 0.15s ease',
+              border: 'none',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.75')}
+            onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
+          >
+            👤
+          </button>
+
+          {isAccountMenuOpen ? (
+            <div
+              role="menu"
+              style={{
+                position: 'absolute',
+                top: 'calc(100% + 8px)',
+                right: 0,
+                minWidth: 148,
+                background: colors.card,
+                border: `1px solid ${colors.border}`,
+                borderRadius: 12,
+                boxShadow: '0 12px 28px rgba(15, 23, 42, 0.12)',
+                padding: 6,
+                zIndex: 200,
+              }}
+            >
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setIsAccountMenuOpen(false);
+                  navigate('/mypage');
+                }}
+                style={{
+                  width: '100%',
+                  border: 'none',
+                  background: 'transparent',
+                  borderRadius: 8,
+                  padding: '10px 12px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  color: colors.text,
+                  fontSize: 13,
+                  fontWeight: 600,
+                }}
+              >
+                마이페이지
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={handleLogout}
+                style={{
+                  width: '100%',
+                  border: 'none',
+                  background: 'transparent',
+                  borderRadius: 8,
+                  padding: '10px 12px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  color: colors.danger,
+                  fontSize: 13,
+                  fontWeight: 600,
+                }}
+              >
+                로그아웃
+              </button>
+            </div>
+          ) : null}
         </div>
 
       </div>

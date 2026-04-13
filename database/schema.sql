@@ -6,11 +6,12 @@
 --
 -- 테이블 목록 (의존 관계 순서대로 작성 — 참조 대상 테이블이 먼저 나와야 함)
 --   1. users              — 회원 정보
---   2. workout_sessions   — 운동 세션 (날짜·메모)
---   3. workout_sets       — 세션 내 개별 세트 (종목·중량·횟수)
---   4. diet_entries       — 식단 카드(제목·즐겨찾기)
---   5. diet_items         — 식단 카드 내 음식 item(칼로리·영양소)
---   6. sleep_records      — 수면 기록 (취침·기상·품질)
+--   2. user_profiles      — 사용자 프로필(개인 맞춤 정보)
+--   3. workout_sessions   — 운동 세션 (날짜·메모)
+--   4. workout_sets       — 세션 내 개별 세트 (종목·중량·횟수)
+--   5. diet_entries       — 식단 카드(제목·즐겨찾기)
+--   6. diet_items         — 식단 카드 내 음식 item(칼로리·영양소)
+--   7. sleep_records      — 수면 기록 (취침·기상·품질)
 -- =============================================================================
 
 
@@ -41,6 +42,7 @@ DROP TABLE IF EXISTS diet_items;
 DROP TABLE IF EXISTS diet_entries;
 DROP TABLE IF EXISTS workout_sets;
 DROP TABLE IF EXISTS workout_sessions;
+DROP TABLE IF EXISTS user_profiles;
 DROP TABLE IF EXISTS users;
 
 CREATE TABLE users
@@ -96,6 +98,31 @@ CREATE TABLE users
     UNIQUE KEY uq_users_email (email)
     -- UNIQUE KEY  : email 중복 저장 불가 — 같은 이메일로 두 번 가입 방지
     -- 인덱스 이름 규칙: uq_테이블명_컬럼명 (uq = unique)
+
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci;
+
+
+CREATE TABLE user_profiles
+(
+    id           INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    user_id      INT UNSIGNED NOT NULL,
+    profile_note VARCHAR(150) NOT NULL DEFAULT '',
+    height_cm    DECIMAL(5, 2) DEFAULT NULL,
+    weight_kg    DECIMAL(5, 2) DEFAULT NULL,
+    skeletal_muscle_kg DECIMAL(5, 2) DEFAULT NULL,
+    body_fat_kg  DECIMAL(5, 2) DEFAULT NULL,
+    created_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_user_profiles_user_id (user_id),
+
+    CONSTRAINT fk_user_profile_user
+        FOREIGN KEY (user_id) REFERENCES users (id)
+            ON DELETE CASCADE
 
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
@@ -381,6 +408,7 @@ CREATE TABLE sleep_records
 -- =============================================================================
 -- SHOW TABLES;                         -- 생성된 테이블 목록 확인
 -- DESCRIBE users;                      -- users 컬럼 구조 확인
+-- DESCRIBE user_profiles;
 -- DESCRIBE workout_sessions;
 -- DESCRIBE workout_sets;
 -- DESCRIBE diet_entries;

@@ -9,6 +9,7 @@ import {
     updateDietEntry,
     updateDietGoals
 } from '../../api/dietApi.js';
+import {getCurrentUser} from '../../api/authApi.js';
 import './DietPage.css';
 
 const DEFAULT_DAILY_GOALS = {calories: 2000, protein: 100, carbs: 300, fat: 60};
@@ -33,13 +34,16 @@ const toNumber = (value) => {
     return Number.isFinite(parsed) ? parsed : 0;
 };
 
-const makeDefaultDietTitle = () => {
-    const now = new Date();
-    const yyyy = now.getFullYear();
-    const mm = String(now.getMonth() + 1).padStart(2, '0');
-    const dd = String(now.getDate()).padStart(2, '0');
-    const hh = String(now.getHours()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd} ${hh}시`;
+const makeDefaultDietTitle = (date = new Date()) => {
+    const parts = new Intl.DateTimeFormat('ko-KR', {
+        timeZone: 'Asia/Seoul',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        hour12: false,
+    }).formatToParts(date).reduce((acc, part) => ({...acc, [part.type]: part.value}), {});
+    return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}시`;
 };
 
 const makeKstDateInputValue = (date = new Date()) => new Intl.DateTimeFormat('sv-SE', {
@@ -274,6 +278,14 @@ function DietPage() {
     const [lastCoachAnalyzedAt, setLastCoachAnalyzedAt] = useState('');
     const [coachAnalyzedDate, setCoachAnalyzedDate] = useState('');
     const [lastCoachAnalyzedSignature, setLastCoachAnalyzedSignature] = useState('');
+    const [userProfileNote, setUserProfileNote] = useState('');
+    const [userProfile, setUserProfile] = useState({
+        profile_note: '',
+        height_cm: '',
+        weight_kg: '',
+        skeletal_muscle_kg: '',
+        body_fat_kg: '',
+    });
     const [selectedDate, setSelectedDate] = useState(() => makeKstDateInputValue());
     const [dateDraft, setDateDraft] = useState(() => makeKstDateInputValue());
 
@@ -371,6 +383,7 @@ function DietPage() {
 
     const selectedAiItem = useMemo(() => aiEditForm.items.find((item) => item.id === aiEditForm.itemId), [aiEditForm]);
     const selectedDietItem = useMemo(() => dietEditForm.items.find((item) => item.id === dietEditForm.itemId), [dietEditForm]);
+    const canUseExistingDiet = diets.length > 0;
 
     const getNextItemId = () => {
         const next = nextItemIdRef.current;
@@ -461,6 +474,26 @@ function DietPage() {
     }, [isUploadModalOpen, isManualModalOpen, isFavoritesModalOpen, isAiEditModalOpen, isAiSaveModalOpen, isGoalModalOpen, isDietEditModalOpen]);
 
     useEffect(() => {
+        const loadCurrentUser = async () => {
+            try {
+                const data = await getCurrentUser();
+                const profile = data?.user?.profile || {};
+                setUserProfile({
+                    profile_note: profile.profile_note || data?.user?.profile_note || '',
+                    height_cm: profile.height_cm ?? data?.user?.height_cm ?? '',
+                    weight_kg: profile.weight_kg ?? data?.user?.weight_kg ?? '',
+                    skeletal_muscle_kg: profile.skeletal_muscle_kg ?? data?.user?.skeletal_muscle_kg ?? '',
+                    body_fat_kg: profile.body_fat_kg ?? data?.user?.body_fat_kg ?? '',
+                });
+                setUserProfileNote(profile.profile_note || data?.user?.profile_note || '');
+            } catch (error) {
+                console.error('사용자 정보 조회 실패:', error);
+            }
+        };
+        loadCurrentUser();
+    }, []);
+
+    useEffect(() => {
         const loadEntries = async () => {
             const seq = ++entryLoadSeqRef.current;
             try {
@@ -493,6 +526,11 @@ function DietPage() {
         try {
             const response = await getDietCoachFeedback({
                 selected_date: selectedDate,
+                profile_note: userProfileNote,
+                height_cm: userProfile.height_cm,
+                weight_kg: userProfile.weight_kg,
+                skeletal_muscle_kg: userProfile.skeletal_muscle_kg,
+                body_fat_kg: userProfile.body_fat_kg,
                 goals: dailyGoals,
                 totals: nutritionTotals,
                 entries: diets.map((diet) => ({
@@ -624,7 +662,7 @@ function DietPage() {
 
     const handleConfirmAiSave = async () => {
         try {
-            if (aiSaveForm.addMode === 'existing' && aiSaveForm.targetDietId) {
+            if (aiSaveForm.addMode === 'existing' && aiSaveForm.targetDietId && canUseExistingDiet) {
                 const targetDietId = Number(aiSaveForm.targetDietId);
                 const target = diets.find((diet) => diet.id === targetDietId);
                 if (target) {
@@ -715,7 +753,7 @@ function DietPage() {
             fat: toNumber(manualForm.fat),
         };
         try {
-            if (manualForm.addMode === 'existing' && manualForm.targetDietId) {
+            if (manualForm.addMode === 'existing' && manualForm.targetDietId && canUseExistingDiet) {
                 const targetDietId = Number(manualForm.targetDietId);
                 const target = diets.find((diet) => diet.id === targetDietId);
                 if (target) {
@@ -840,7 +878,8 @@ function DietPage() {
                             <button type="button" className="aiCoachRefreshButton" onClick={handleRequestAiCoach}
                                     disabled={isAiCoachLoading}>{isAiCoachLoading ? '분석 중' : '분석 시작'}</button>
                         </div>
-                        {lastCoachAnalyzedAt ? <p className="aiCoachMeta">기준 날짜: {coachAnalyzedDate || '-'} · 마지막 분석: {lastCoachAnalyzedAt}</p> : null}
+                        {lastCoachAnalyzedAt ? <p className="aiCoachMeta">기준 날짜: {coachAnalyzedDate || '-'} · 마지막
+                            분석: {lastCoachAnalyzedAt}</p> : null}
                         <p className="aiCoachContent">{isAiCoachLoading ? '분석 중...' : aiCoachMessage}</p></div>
                 </aside>
             </div>
@@ -934,13 +973,14 @@ function DietPage() {
                                               addMode: e.target.value
                                           }))}/> 추가</label>
                             <label><input type="radio" name="add-mode" value="existing"
+                                          disabled={!canUseExistingDiet}
                                           checked={manualForm.addMode === 'existing'}
                                           onChange={(e) => setManualForm((prev) => ({
                                               ...prev,
                                               addMode: e.target.value
                                           }))}/> 기존 식단에 추가</label>
                         </div>
-                        {manualForm.addMode === 'existing' ?
+                        {manualForm.addMode === 'existing' && canUseExistingDiet ?
                             <label className="dietFormLabel">추가할 식단 선택<select className="dietFormInput"
                                                                               value={manualForm.targetDietId}
                                                                               onChange={(e) => setManualForm((prev) => ({
@@ -1057,6 +1097,7 @@ function DietPage() {
                             addMode: e.target.value
                         }))}/> 새 식단으로 저장</label>
                         <label><input type="radio" name="ai-save-mode" value="existing"
+                                      disabled={!canUseExistingDiet}
                                       checked={aiSaveForm.addMode === 'existing'}
                                       onChange={(e) => setAiSaveForm((prev) => ({
                                           ...prev,
@@ -1069,7 +1110,7 @@ function DietPage() {
                                                                          ...prev,
                                                                          title: e.target.value
                                                                      }))}/></label> : null}
-                    {aiSaveForm.addMode === 'existing' ?
+                    {aiSaveForm.addMode === 'existing' && canUseExistingDiet ?
                         <label className="dietFormLabel">추가할 식단 선택<select className="dietFormInput"
                                                                           value={aiSaveForm.targetDietId}
                                                                           onChange={(e) => setAiSaveForm((prev) => ({

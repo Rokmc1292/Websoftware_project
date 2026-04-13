@@ -51,7 +51,11 @@ apiClient.interceptors.response.use(
   },
   (error) => {
     // HTTP 상태코드가 4xx, 5xx(에러)인 경우
-    if (error.response?.status === 401) {
+    const requestUrl = String(error.config?.url || '');
+    const requestMethod = String(error.config?.method || '').toLowerCase();
+    const isPasswordChangeRequest = requestMethod === 'put' && requestUrl.includes('/auth/password');
+
+    if (error.response?.status === 401 && !isPasswordChangeRequest) {
       // 401 Unauthorized : 토큰이 만료되었거나 유효하지 않은 경우
       localStorage.removeItem('access_token'); // 만료된 토큰을 로컬 스토리지에서 삭제
       window.location.href = '/login'; // 로그인 페이지로 강제 이동
@@ -66,19 +70,19 @@ apiClient.interceptors.response.use(
 // ─────────────────────────────────────────────
 // userData : { username, email, password } 형태의 객체
 // POST /api/auth/register 엔드포인트에 요청을 보냄
-export const register = async (userData) => {
+export async function register(userData) {
   // await : Promise가 완료될 때까지 기다림 — 비동기 코드를 동기 코드처럼 작성 가능
   const response = await apiClient.post('/auth/register', userData);
   // response.data : 서버가 JSON으로 반환한 실제 데이터 (axios가 자동으로 파싱)
   return response.data;
-};
+}
 
 // ─────────────────────────────────────────────
 // 로그인 API 함수
 // ─────────────────────────────────────────────
 // credentials : { email, password } 형태의 객체
 // POST /api/auth/login 엔드포인트에 요청을 보냄
-export const login = async (credentials) => {
+export async function login(credentials) {
   const response = await apiClient.post('/auth/login', credentials); // 로그인 요청 전송
   const { access_token, user } = response.data; // 서버 응답에서 토큰과 사용자 정보 추출
 
@@ -87,25 +91,45 @@ export const login = async (credentials) => {
   localStorage.setItem('access_token', access_token);
 
   return { access_token, user }; // 토큰과 사용자 정보를 호출한 곳으로 반환
-};
+}
 
 // ─────────────────────────────────────────────
 // 로그아웃 함수 (클라이언트 측)
 // ─────────────────────────────────────────────
 // 서버에 별도 요청 없이 로컬에 저장된 토큰만 삭제
 // JWT는 서버에 상태를 저장하지 않으므로, 토큰을 지우는 것만으로 로그아웃 처리됨
-export const logout = () => {
+export function logout() {
   localStorage.removeItem('access_token'); // 토큰 삭제 — 이후 요청에 토큰이 첨부되지 않음
   window.location.href = '/login'; // 로그인 페이지로 이동
-};
+}
+
+export async function getCurrentUser() {
+  const response = await apiClient.get('/profile/me');
+  return response.data;
+}
+
+export async function updateProfile(profileData) {
+  const response = await apiClient.put('/profile/me', profileData);
+  return response.data;
+}
+
+export async function deleteAccount(payload) {
+  const response = await apiClient.delete('/profile/me', { data: payload });
+  return response.data;
+}
+
+export async function changePassword(passwordData) {
+  const response = await apiClient.put('/auth/password', passwordData);
+  return response.data;
+}
 
 // ─────────────────────────────────────────────
 // 로그인 상태 확인 함수
 // ─────────────────────────────────────────────
 // 로컬 스토리지에 토큰이 있으면 로그인 상태로 간주
 // 실제 토큰 유효성 검사는 서버가 담당 — 여기서는 단순히 존재 여부만 확인
-export const isLoggedIn = () => {
+export function isLoggedIn() {
   return Boolean(localStorage.getItem('access_token')); // 토큰이 있으면 true, 없으면 false
-};
+}
 
 export default apiClient; // apiClient를 기본 내보내기 — 다른 API 파일에서 재사용 가능

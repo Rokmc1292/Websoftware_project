@@ -1,15 +1,49 @@
 import json
 import os
 import re
+from typing import Any, cast
 
 try:
     import google.generativeai as genai
 except ImportError:  # pragma: no cover
     genai = None
 
+DEFAULT_IMAGE_MODEL = (os.getenv('GOOGLE_AI_IMAGE_MODEL') or 'gemini-2.5-flash').strip()
+DEFAULT_COACH_MODEL = (os.getenv('GOOGLE_AI_COACH_MODEL') or 'gemini-2.5-flash').strip()
 
-DEFAULT_IMAGE_MODEL = 'gemini-1.5-flash'
-DEFAULT_COACH_MODEL = 'gemini-1.5-flash'
+
+def build_profile_prompt(profile=None):
+    """
+    AI 프롬프트 뒤에 덧붙일 수 있는 프로필 요약 문자열을 반환한다.
+
+    - profile 정보가 없거나 비어 있으면 빈 문자열 반환
+    - 값이 있으면 한국어 문장으로 정리해 반환
+    - 다른 개발자는 `base_prompt + build_profile_prompt(profile)` 형태로 붙여 쓸 수 있다.
+    """
+    profile = profile or {}
+
+    parts = []
+    profile_note = str(profile.get('profile_note') or '').strip()
+    height_cm = profile.get('height_cm')
+    weight_kg = profile.get('weight_kg')
+    skeletal_muscle_kg = profile.get('skeletal_muscle_kg')
+    body_fat_kg = profile.get('body_fat_kg')
+
+    if profile_note:
+        parts.append(f"개인 맞춤 메모: {profile_note}")
+    if height_cm not in (None, ''):
+        parts.append(f"키: {height_cm}cm")
+    if weight_kg not in (None, ''):
+        parts.append(f"체중: {weight_kg}kg")
+    if skeletal_muscle_kg not in (None, ''):
+        parts.append(f"골격근량: {skeletal_muscle_kg}kg")
+    if body_fat_kg not in (None, ''):
+        parts.append(f"체지방량: {body_fat_kg}kg")
+
+    if not parts:
+        return ''
+
+    return '사용자 개인 정보:\n- ' + '\n- '.join(parts) + '\n'
 
 
 def _extract_json(text):
@@ -31,7 +65,8 @@ def _build_client():
     api_key = (os.getenv('GOOGLE_AI_API_KEY') or '').strip()
     if not api_key:
         raise ValueError('GOOGLE_AI_API_KEY가 설정되지 않았습니다.')
-    genai.configure(api_key=api_key)
+    genai_module = cast(Any, genai)
+    genai_module.configure(api_key=api_key)
 
 
 def _normalize_items(items):
@@ -53,7 +88,8 @@ def _normalize_items(items):
 def analyze_food_image(image_bytes, mime_type='image/jpeg', filename='upload.jpg'):
     _build_client()
     model_name = (os.getenv('GOOGLE_AI_IMAGE_MODEL') or DEFAULT_IMAGE_MODEL).strip()
-    model = genai.GenerativeModel(model_name=model_name)
+    genai_module = cast(Any, genai)
+    model = genai_module.GenerativeModel(model_name=model_name)
     prompt = (
         '음식 사진을 보고 음식 목록과 영양 정보를 추정해 JSON만 반환하세요. '
         '스키마: {"items":[{"name":"string","calories":number,"protein":number,"carbs":number,"fat":number}]}. '
@@ -74,14 +110,23 @@ def analyze_food_image(image_bytes, mime_type='image/jpeg', filename='upload.jpg
 def generate_diet_coach_feedback(payload):
     _build_client()
     model_name = (os.getenv('GOOGLE_AI_COACH_MODEL') or DEFAULT_COACH_MODEL).strip()
-    model = genai.GenerativeModel(model_name=model_name)
+    genai_module = cast(Any, genai)
+    model = genai_module.GenerativeModel(model_name=model_name)
+    profile_prompt = build_profile_prompt(payload)
     prompt = (
         '다음 식단 데이터를 보고 한국어 코칭 메시지를 작성하세요. JSON만 반환하세요. '
         '스키마: {"feedback":"string"}. '
-        '조건: 220자 이내, 한 줄 총평 + 불릿 2개(각 줄 앞에 •), 과장 금지.'
+        '조건: 220자 이내, 한 줄 총평 + 불릿 2개(각 줄 앞에 •), 과장 금지. '
+        '개인 맞춤 정보가 있으면 그 내용을 우선 반영하세요.'
     )
+    context = {
+        'selected_date': payload.get('selected_date', ''),
+        'goals': payload.get('goals', {}),
+        'totals': payload.get('totals', {}),
+        'entries': payload.get('entries', []),
+    }
     response = model.generate_content(
-        f'{prompt}\n\n입력 데이터:\n{json.dumps(payload, ensure_ascii=False)}',
+        f'{prompt}\n\n{profile_prompt}입력 데이터:\n{json.dumps(context, ensure_ascii=False)}',
         generation_config={'response_mime_type': 'application/json'}
     )
     data = _extract_json(getattr(response, 'text', ''))
@@ -89,5 +134,3 @@ def generate_diet_coach_feedback(payload):
     if not feedback:
         feedback = 'AI 코치 응답이 비어 있습니다. 잠시 후 다시 시도해주세요.'
     return {'feedback': feedback}
-
-

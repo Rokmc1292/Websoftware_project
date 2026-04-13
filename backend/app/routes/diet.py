@@ -7,7 +7,7 @@ from flask_jwt_extended import get_jwt_identity, jwt_required
 from .. import db
 from ..models.diet import DietEntry, DietItem
 from ..models.user import User
-from ..services.diet_coat_service import analyze_food_image, generate_diet_coach_feedback
+from ..services.diet_coach_service import analyze_food_image, generate_diet_coach_feedback
 
 
 diet_bp = Blueprint('diet', __name__)
