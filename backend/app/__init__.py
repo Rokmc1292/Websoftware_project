@@ -72,7 +72,8 @@ def create_app():
     # with 블록 안에서만 db.create_all() 등을 사용할 수 있음
     with app.app_context():
 
-        
+        # ✅ FitbitToken 모델까지 인식되도록 import
+        from .models.fitbit_token import FitbitToken
         # db.create_all() : models 폴더의 클래스를 기반으로 DB 테이블을 생성
         # 이미 테이블이 있으면 건너뜀 (덮어쓰지 않음)
         db.create_all()

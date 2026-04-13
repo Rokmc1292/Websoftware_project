@@ -13,7 +13,7 @@
 //   ├── sleep/      SleepPage
 //   └── stats/      StatsPage
 
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 // BrowserRouter : HTML5 History API 기반 라우터 — URL이 바뀌어도 페이지 새로고침 없이 동작
 // Routes       : 여러 Route를 감싸는 컨테이너, 현재 URL과 일치하는 첫 번째 Route만 렌더링
 // Route        : path(URL 경로)와 element(보여줄 컴포넌트)를 연결하는 규칙
@@ -25,27 +25,25 @@ import AppLayout from './components/AppLayout.jsx';
 // 로그인 후 모든 기능 페이지를 감싸는 공통 틀
 
 // ── 인증 페이지 (헤더 없음) ──
-import LoginPage  from './pages/auth/LoginPage.jsx';  // /login  → 로그인 화면
+import LoginPage from './pages/auth/LoginPage.jsx'; // /login  → 로그인 화면
 import SignupPage from './pages/auth/SignupPage.jsx'; // /signup → 회원가입 화면
 
-// ── 기능 페이지 (AppLayout 안에서 렌더링됨) ──
-import WorkoutPage from './pages/workout/WorkoutPage.jsx'; // /workout → 운동루틴
-import DietPage    from './pages/diet/DietPage.jsx';       // /diet    → 식단관리
-import SleepPage   from './pages/sleep/SleepPage.jsx';     // /sleep   → 수면관리
-import StatsPage   from './pages/stats/StatsPage.jsx';     // /stats   → 통계·분석
 
-// App 컴포넌트 — 앱 전체의 라우팅 구조를 정의
+// ── 기능 페이지 (AppLayout 안에서 렌더링됨) ──
+import DietPage from './pages/diet/DietPage.jsx'; // /diet    → 식단관리
+import SleepPage from './pages/sleep/SleepPage.jsx'; // /sleep   → 수면관리
+import StatsPage from './pages/stats/StatsPage.jsx'; // /stats   → 통계·분석
+import WorkoutPage from './pages/workout/WorkoutPage.jsx'; // /workout → 운동루틴
+
+import IntroPage from './pages/intro/IntroPage.jsx'; // 인트로 화면
+
 function App() {
   return (
     // BrowserRouter : 앱 전체를 감싸야 함, 내부 어디서든 useNavigate·useLocation 사용 가능
     <BrowserRouter>
       {/* Routes : URL이 바뀔 때마다 아래 Route 목록 중 일치하는 것을 찾아 렌더링 */}
       <Routes>
-
-        {/* ── 루트 경로 ── */}
-        {/* '/' 접속 시 로그인 페이지로 자동 이동 */}
-        {/* replace : 히스토리 스택에 '/'를 남기지 않음 — 뒤로가기 시 '/'로 돌아오지 않음 */}
-        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="/" element={<IntroPage />} />
 
         {/* ── 인증 페이지 — 헤더 없이 단독 렌더링 ── */}
         <Route path="/login"  element={<LoginPage />}  />
@@ -72,7 +70,7 @@ function App() {
 
         {/* ── 존재하지 않는 경로 ── */}
         {/* 위에서 일치하는 경로가 없을 때 실행되는 와일드카드 — 로그인 페이지로 이동 */}
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
 
       </Routes>
     </BrowserRouter>
