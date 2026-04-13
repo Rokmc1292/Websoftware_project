@@ -7,6 +7,7 @@ from flask_jwt_extended import get_jwt_identity, jwt_required
 from .. import db
 from ..models.diet import DietEntry, DietItem
 from ..models.user import User
+from ..services.diet_coat_service import analyze_food_image, generate_diet_coach_feedback
 
 
 diet_bp = Blueprint('diet', __name__)
@@ -149,6 +150,15 @@ def create_entry():
     data = request.get_json(silent=True) or {}
 
     title = (data.get('title') or '').strip() or _now_kst_naive().strftime('%Y-%m-%d %H시')
+    recorded_at = _now_kst_naive()
+    recorded_date = (data.get('recorded_date') or '').strip()
+    if recorded_date:
+        try:
+            selected_date = datetime.strptime(recorded_date, '%Y-%m-%d').date()
+            now_kst = _now_kst_naive()
+            recorded_at = datetime.combine(selected_date, now_kst.time())
+        except ValueError:
+            return jsonify({'message': 'recorded_date 형식이 올바르지 않습니다. YYYY-MM-DD 형식을 사용하세요.'}), 400
     parsed_items = _parse_items(data.get('items'))
 
     if not parsed_items:
@@ -158,7 +168,7 @@ def create_entry():
         entry = DietEntry(
             user_id=user_id,
             title=title,
-            recorded_at=_now_kst_naive(),
+            recorded_at=recorded_at,
             is_favorite=bool(data.get('is_favorite', False)),
         )
         _upsert_items(entry, parsed_items)
@@ -240,7 +250,51 @@ def toggle_favorite(entry_id):
 @diet_bp.route('/entries/<int:entry_id>/analyze', methods=['POST'])
 @jwt_required()
 def analyze_entry(entry_id):
-    # TODO: AI 식단 분석 연동 예정
-    return jsonify({'message': 'AI 식단 분석 기능은 아직 구현되지 않았습니다.'}), 501
+    return jsonify({'message': '이 엔드포인트는 더 이상 사용되지 않습니다.', 'use': '/api/diet/ai/analyze-image'}), 410
+
+
+@diet_bp.route('/ai/analyze-image', methods=['POST'])
+@jwt_required()
+def analyze_image():
+    file = request.files.get('image')
+    if not file:
+        return jsonify({'message': 'image 파일이 필요합니다.'}), 400
+
+    image_bytes = file.read()
+    if not image_bytes:
+        return jsonify({'message': '업로드된 이미지가 비어 있습니다.'}), 400
+
+    try:
+        result = analyze_food_image(
+            image_bytes=image_bytes,
+            mime_type=(file.mimetype or 'image/jpeg'),
+            filename=(file.filename or 'upload.jpg'),
+        )
+        return jsonify({'message': 'AI 이미지 분석이 완료되었습니다.', 'items': result.get('items', [])}), 200
+    except ValueError as error:
+        return jsonify({'message': str(error)}), 400
+    except Exception as error:
+        return jsonify({'message': f'AI 이미지 분석 중 오류가 발생했습니다: {str(error)}'}), 500
+
+
+@diet_bp.route('/ai/coach', methods=['POST'])
+@jwt_required()
+def diet_coach():
+    payload = request.get_json(silent=True) or {}
+    try:
+        result = generate_diet_coach_feedback(payload)
+        analyzed_at = _now_kst_naive()
+        analyzed_date = (payload.get('selected_date') or '').strip() or _today_kst().strftime('%Y-%m-%d')
+        return jsonify({
+            'message': 'AI 코치 분석이 완료되었습니다.',
+            'feedback': result.get('feedback', ''),
+            'analyzed_at': analyzed_at.isoformat(),
+            'analyzed_at_label': analyzed_at.strftime('%Y.%m.%d. %H:%M KST'),
+            'analyzed_date': analyzed_date,
+        }), 200
+    except ValueError as error:
+        return jsonify({'message': str(error)}), 400
+    except Exception as error:
+        return jsonify({'message': f'AI 코치 분석 중 오류가 발생했습니다: {str(error)}'}), 500
 
 

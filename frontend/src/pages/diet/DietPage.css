@@ -109,6 +109,53 @@
     margin-bottom: var(--g-lg);
 }
 
+.dietListToolbar {
+    min-height: 44px;
+    margin-bottom: var(--g-lg);
+    padding: 6px 12px;
+    border: 1px solid var(--c-border);
+    border-radius: var(--r-lg);
+    background: var(--c-card);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--g-sm);
+}
+
+.dietListToolbarTitle {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.dietDateFilterForm {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.dietDateFilterInput {
+    height: 30px;
+    border: 1px solid var(--c-border);
+    border-radius: var(--r-sm);
+    padding: 4px 8px;
+    font-size: 12px;
+    color: var(--c-text);
+    background: var(--c-card);
+}
+
+.dietDateFilterButton {
+    height: 30px;
+    border: 1px solid var(--c-primary);
+    border-radius: var(--r-sm);
+    padding: 0 10px;
+    background: var(--c-primary);
+    color: var(--c-card);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
 .foodList,
 .nutrientsGrid {
     display: flex;
@@ -534,6 +581,33 @@
     margin-bottom: var(--g-xs);
 }
 
+.aiCoachRefreshButton {
+    margin-left: auto;
+    border: 1px solid var(--c-ai);
+    border-radius: var(--r-sm);
+    padding: 4px 8px;
+    background: var(--c-card);
+    color: var(--c-ai);
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.aiCoachRefreshButton:disabled {
+    opacity: .6;
+    cursor: default;
+}
+
+.aiCoachDirtyBadge {
+    border: 1px solid var(--c-ai);
+    border-radius: 999px;
+    padding: 2px 6px;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--c-ai);
+    background: var(--c-card);
+}
+
 .aiCoachTitle {
     margin: 0;
     font-size: 12px;
@@ -546,6 +620,14 @@
     font-size: 12px;
     line-height: 1.6;
     color: var(--c-ai);
+    white-space: pre-line;
+}
+
+.aiCoachMeta {
+    margin: 0 0 6px;
+    font-size: 11px;
+    color: var(--c-ai);
+    opacity: .8;
 }
 
 .dietUploadModalOverlay {
@@ -811,6 +893,15 @@
 
     .foodCardActionGroup {
         gap: 4px;
+    }
+
+    .dietListToolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .dietDateFilterForm {
+        justify-content: space-between;
     }
 }
 
