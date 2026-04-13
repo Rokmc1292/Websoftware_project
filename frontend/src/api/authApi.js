@@ -54,8 +54,10 @@ apiClient.interceptors.response.use(
     const requestUrl = String(error.config?.url || '');
     const requestMethod = String(error.config?.method || '').toLowerCase();
     const isPasswordChangeRequest = requestMethod === 'put' && requestUrl.includes('/auth/password');
+    const isLoginRequest = requestMethod === 'post' && requestUrl.includes('/auth/login');
+    const isLoginPage = window.location.pathname === '/login';
 
-    if (error.response?.status === 401 && !isPasswordChangeRequest) {
+    if (error.response?.status === 401 && !isPasswordChangeRequest && !isLoginRequest && !isLoginPage) {
       // 401 Unauthorized : 토큰이 만료되었거나 유효하지 않은 경우
       localStorage.removeItem('access_token'); // 만료된 토큰을 로컬 스토리지에서 삭제
       window.location.href = '/login'; // 로그인 페이지로 강제 이동
