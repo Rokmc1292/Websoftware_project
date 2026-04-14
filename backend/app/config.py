@@ -2,9 +2,12 @@
 # DB 연결 정보, 시크릿 키 등 민감한 정보를 .env 파일에서 읽어와 Python 클래스로 관리
 
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+BASE_DIR = Path(__file__).resolve().parents[2]
+load_dotenv(BASE_DIR / '.env', override=False)
+load_dotenv(BASE_DIR / 'backend' / '.env', override=True)
 
 
 class Config:
@@ -36,8 +39,15 @@ class Config:
     # ─────────────────────────────────────────────
     # Claude AI API 설정
     # ─────────────────────────────────────────────
-    ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY', '')
-    ANTHROPIC_MODEL = os.getenv('ANTHROPIC_MODEL', 'claude-3-5-sonnet-20241022')
+    TAE_ANTHROPIC_API_KEY = os.getenv('TAE_ANTHROPIC_API_KEY', '')
+    TAE_ANTHROPIC_MODEL = os.getenv('TAE_ANTHROPIC_MODEL', '')
+
+    GIL_ANTHROPIC_API_KEY = os.getenv('GIL_ANTHROPIC_API_KEY', '')
+    GIL_ANTHROPIC_MODEL = os.getenv('GIL_ANTHROPIC_MODEL', '')
+
+    SUNG_GOOGLE_AI_API_KEY = os.getenv('SUNG_GOOGLE_AI_API_KEY', '')
+    SUNG_GOOGLE_AI_IMAGE_MODEL = os.getenv('SUNG_GOOGLE_AI_IMAGE_MODEL', '')
+    SUNG_GOOGLE_AI_COACH_MODEL = os.getenv('SUNG_GOOGLE_AI_COACH_MODEL', '')
 
     # ─────────────────────────────────────────────
     # 🔥 Fitbit API 설정 (추가)

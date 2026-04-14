@@ -2,7 +2,9 @@
 
 import json
 import re
+from typing import Any, cast
 from anthropic import Anthropic
+from anthropic.types import MessageParam
 
 
 SYSTEM_PROMPT = """
@@ -40,7 +42,7 @@ def extract_json_from_text(text: str) -> dict:
     except json.JSONDecodeError:
         pass
 
-    match = re.search(r"\{.*\}", cleaned, re.DOTALL)
+    match = re.search(r"\{.*}", cleaned, re.DOTALL)
     if not match:
         raise ValueError("Claude 응답에서 JSON을 찾을 수 없습니다.")
 
@@ -48,11 +50,13 @@ def extract_json_from_text(text: str) -> dict:
 
 
 def generate_sleep_coach_feedback(config, payload: dict) -> dict:
-    api_key = config.get("ANTHROPIC_API_KEY", "")
-    model = config.get("ANTHROPIC_MODEL", "claude-3-5-sonnet-20241022")
+    api_key = config.get("GIL_ANTHROPIC_API_KEY", "")
+    model = config.get("GIL_ANTHROPIC_MODEL", "")
 
     if not api_key:
-        raise ValueError("ANTHROPIC_API_KEY가 설정되지 않았습니다.")
+        raise ValueError("GIL_ANTHROPIC_API_KEY가 설정되지 않았습니다.")
+    if not model:
+        raise ValueError("GIL_ANTHROPIC_MODEL이 설정되지 않았습니다.")
 
     client = Anthropic(api_key=api_key)
 
@@ -89,12 +93,10 @@ def generate_sleep_coach_feedback(config, payload: dict) -> dict:
         max_tokens=1000,
         temperature=0.5,
         system=SYSTEM_PROMPT,
-        messages=[
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ]
+        messages=[cast(MessageParam, {
+            "role": "user",
+            "content": prompt
+        })]
     )
 
     response_text = "".join(

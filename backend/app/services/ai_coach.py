@@ -2,8 +2,8 @@
 # 운동 세션 데이터를 Claude AI에게 전달하고 분석·조언 텍스트를 받아 반환
 # 이 파일은 순수하게 AI API 통신만 담당 — 라우트 코드와 분리해 유지보수 편의성 향상
 
-import os  # os : 환경변수(ANTHROPIC_API_KEY)를 읽기 위한 Python 표준 모듈
-from typing import cast
+import os  # os : 환경변수(TAE_ANTHROPIC_API_KEY)를 읽기 위한 Python 표준 모듈
+from typing import Any, cast
 
 # anthropic : Anthropic 공식 Python SDK — Claude API를 쉽게 사용하도록 도와주는 라이브러리
 # 'pip install anthropic' 으로 설치
@@ -41,14 +41,18 @@ def analyze_workout(session_data):
         # 1단계: Anthropic 클라이언트 생성
         # ─────────────────────────────────────────────
 
-        # os.getenv('ANTHROPIC_API_KEY') : .env 파일에 저장된 API 키를 환경변수에서 읽음
+        # os.getenv('TAE_ANTHROPIC_API_KEY') : .env 파일에 저장된 API 키를 환경변수에서 읽음
         # api_key를 직접 코드에 쓰면 GitHub에 올릴 때 키가 노출되므로 반드시 환경변수로 관리
-        api_key = os.getenv('ANTHROPIC_API_KEY')
+        api_key = os.getenv('TAE_ANTHROPIC_API_KEY')
 
         # API 키가 없으면 Claude를 호출할 수 없으므로 즉시 안내 메시지 반환
         if not api_key:
-            # ANTHROPIC_API_KEY 환경변수 미설정 시 사용자에게 안내
-            return 'AI 분석을 사용하려면 ANTHROPIC_API_KEY 환경변수를 설정해주세요.'
+            # TAE_ANTHROPIC_API_KEY 환경변수 미설정 시 사용자에게 안내
+            return 'AI 분석을 사용하려면 TAE_ANTHROPIC_API_KEY 환경변수를 설정해주세요.'
+
+        model = os.getenv('TAE_ANTHROPIC_MODEL', '').strip()
+        if not model:
+            return 'AI 분석을 사용하려면 TAE_ANTHROPIC_MODEL 환경변수를 설정해주세요.'
 
         # anthropic.Anthropic() : Anthropic API와 통신하는 클라이언트 객체 생성
         client = anthropic.Anthropic(api_key=api_key)
@@ -129,9 +133,8 @@ def analyze_workout(session_data):
 
         # client.messages.create() : Claude API에 메시지를 보내고 응답을 받는 함수
         message = client.messages.create(
-            # model : 사용할 Claude 모델 이름
-            # claude-haiku-4-5 : 빠르고 비용 효율적인 모델 — 짧은 분석에 적합
-            model='claude-haiku-4-5-20251001',
+                            # model : 사용할 Claude 모델 이름 (TAE_ANTHROPIC_MODEL에서만 읽음)
+                            model=model,
 
             # max_tokens : 응답의 최대 토큰 수 (대략 1토큰 ≈ 0.75단어)
             # 600토큰이면 약 450자 분량 — 운동 피드백에 충분한 길이
@@ -140,9 +143,7 @@ def analyze_workout(session_data):
             # messages : Claude에게 보내는 대화 내용
             # role='user' : 사용자가 보내는 메시지
             # content : 실제 메시지 텍스트
-            messages=cast(list[MessageParam], [
-                {'role': 'user', 'content': prompt}
-            ])
+            messages=[{'role': 'user', 'content': prompt}]  # type: ignore[arg-type]
         )
 
         # ─────────────────────────────────────────────
@@ -156,7 +157,7 @@ def analyze_workout(session_data):
 
     except anthropic.AuthenticationError:
         # AuthenticationError : API 키가 잘못되었을 때 발생
-        return 'API 키가 올바르지 않습니다. ANTHROPIC_API_KEY를 확인해주세요.'
+        return 'API 키가 올바르지 않습니다. TAE_ANTHROPIC_API_KEY를 확인해주세요.'
 
     except anthropic.RateLimitError:
         # RateLimitError : API 호출 한도를 초과했을 때 발생

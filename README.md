@@ -409,18 +409,20 @@ mysql -u root -p -e "USE nsns_db; SHOW TABLES;"
 
 ## 10. 환경 변수
 
-아래 키들은 `backend/.env`에서 관리합니다.
+Flask 백엔드는 루트 `/.env`와 `backend/.env`를 모두 읽습니다. DB 관련 값은 루트 `/.env`에서, AI 관련 값은 `backend/.env`에서 관리하는 구성을 권장합니다.
 
 | 변수명 | 필수 | 기본값/예시 | 설명 |
 |---|---|---|---|
 | `SECRET_KEY` | 권장 | `dev-secret-key-change-in-production` | Flask 시크릿 |
 | `JWT_SECRET_KEY` | 권장 | `jwt-secret-key-change-in-production` | JWT 서명 키 |
 | `DATABASE_URL` | 선택 | `sqlite:///sleep_app.db` | SQLAlchemy DB URL |
-| `ANTHROPIC_API_KEY` | AI 사용 시 필수 | - | Claude API 키 |
-| `ANTHROPIC_MODEL` | 선택 | `claude-3-5-sonnet-20241022` | 수면 코치 모델 |
-| `GOOGLE_AI_API_KEY` | 식단 AI 사용 시 필수 | - | Gemini API 키 |
-| `GOOGLE_AI_IMAGE_MODEL` | 선택 | `gemini-2.5-flash` | 식단 이미지 분석 모델 |
-| `GOOGLE_AI_COACH_MODEL` | 선택 | `gemini-2.5-flash` | 식단 코치 모델 |
+| `TAE_ANTHROPIC_API_KEY` | 운동루틴 AI 사용 시 필수 | - | 운동 코치용 Claude API 키 |
+| `TAE_ANTHROPIC_MODEL` | 선택 | `claude-haiku-4-5-20251001` | 운동 코치 모델 |
+| `GIL_ANTHROPIC_API_KEY` | 수면관리 AI 사용 시 필수 | - | 수면 코치용 Claude API 키 |
+| `GIL_ANTHROPIC_MODEL` | 선택 | `claude-3-5-sonnet-20241022` | 수면 코치 모델 |
+| `SUNG_GOOGLE_AI_API_KEY` | 식단 AI 사용 시 필수 | - | 식단용 Gemini API 키 |
+| `SUNG_GOOGLE_AI_IMAGE_MODEL` | 선택 | `gemini-2.5-flash` | 식단 이미지 분석 모델 |
+| `SUNG_GOOGLE_AI_COACH_MODEL` | 선택 | `gemini-2.5-flash` | 식단 코치 모델 |
 
 최소값 기준 `backend/.env.example` 예시:
 
@@ -428,13 +430,20 @@ mysql -u root -p -e "USE nsns_db; SHOW TABLES;"
 SECRET_KEY=change-me
 JWT_SECRET_KEY=change-me-too
 DATABASE_URL=sqlite:///sleep_app.db
+```
 
-ANTHROPIC_API_KEY=
-ANTHROPIC_MODEL=claude-3-5-sonnet-20241022
+`backend/.env` 예시:
 
-GOOGLE_AI_API_KEY=
-GOOGLE_AI_IMAGE_MODEL=gemini-2.5-flash
-GOOGLE_AI_COACH_MODEL=gemini-2.5-flash
+```env
+TAE_ANTHROPIC_API_KEY=
+TAE_ANTHROPIC_MODEL=claude-haiku-4-5-20251001
+
+GIL_ANTHROPIC_API_KEY=
+GIL_ANTHROPIC_MODEL=claude-3-5-sonnet-20241022
+
+SUNG_GOOGLE_AI_API_KEY=
+SUNG_GOOGLE_AI_IMAGE_MODEL=gemini-2.5-flash
+SUNG_GOOGLE_AI_COACH_MODEL=gemini-2.5-flash
 ```
 
 실사용 키는 저장소에 커밋하지 말고, 로컬 `backend/.env`에서만 관리하세요.
@@ -448,12 +457,12 @@ GOOGLE_AI_COACH_MODEL=gemini-2.5-flash
 - 조치: 브라우저 localStorage의 `access_token` 제거 후 재로그인
 
 ### 11.2 식단 이미지/코치 AI 실패
-- 원인: `GOOGLE_AI_API_KEY` 미설정 또는 모델명 오타
-- 조치: `.env` 확인 후 서버 재시작
+- 원인: `SUNG_GOOGLE_AI_API_KEY` 미설정 또는 `SUNG_GOOGLE_AI_IMAGE_MODEL` / `SUNG_GOOGLE_AI_COACH_MODEL` 오타
+- 조치: `backend/.env` 확인 후 서버 재시작
 
 ### 11.3 수면 AI 실패
-- 원인: `ANTHROPIC_API_KEY` 미설정
-- 조치: 키 설정 후 재시작
+- 원인: `GIL_ANTHROPIC_API_KEY` 또는 `GIL_ANTHROPIC_MODEL` 미설정
+- 조치: `backend/.env` 확인 후 서버 재시작
 
 ### 11.4 프론트에서 API 호출 실패(CORS/연결)
 - Vite가 `5173`, Flask가 `5000`에서 실행 중인지 확인

@@ -31,7 +31,8 @@ def _get_current_user_id():
         identity = identity.get("id")
     if identity is None:
         raise ValueError("JWT identity is missing")
-    return int(identity)
+    identity_value = str(identity)
+    return int(identity_value)
 
 
 @sleep_bp.route("/sleep-records", methods=["GET"])
@@ -201,10 +202,10 @@ def sleep_coach():
                 "coachComment": f"필수 값이 없습니다: {missing_key}"
             }), 400
 
-        if not current_app.config.get("ANTHROPIC_API_KEY"):
+        if not current_app.config.get("GIL_ANTHROPIC_API_KEY"):
             return jsonify({
                 "success": False,
-                "coachComment": "ANTHROPIC_API_KEY가 설정되지 않았습니다."
+                "coachComment": "GIL_ANTHROPIC_API_KEY가 설정되지 않았습니다."
             }), 500
 
         result = generate_sleep_coach_feedback(current_app.config, payload)
