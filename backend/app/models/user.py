@@ -60,6 +60,13 @@ class User(db.Model):
         cascade='all, delete-orphan'
     )
 
+    social_identities = db.relationship(
+        'SocialIdentity',
+        backref='user',
+        lazy=True,
+        cascade='all, delete-orphan'
+    )
+
     # ─────────────────────────────────────────────
     # 메서드(Method) 정의
     # ─────────────────────────────────────────────
@@ -99,11 +106,17 @@ class User(db.Model):
         """
         profile = self.profile.to_dict() if self.profile else {}
         profile_note = profile.get('profile_note', '')
+        social_identities = list(self.social_identities or [])
+        has_social_identity = bool(social_identities)
+        is_social_only = has_social_identity and all(identity.is_social_only for identity in social_identities)
         return {
             'id': self.id,  # 사용자 고유 ID
             'username': self.username,  # 닉네임
             'email': self.email,  # 이메일
             'created_at': self.created_at.isoformat(),  # ISO 8601 형식 날짜 문자열 (예: "2024-01-15T09:30:00")
+            'has_social_identity': has_social_identity,
+            'is_social_only': is_social_only,
+            'social_providers': [identity.provider for identity in social_identities],
             'diet_goals': {
                 'calories': int(self.goal_calories or 2000),
                 'protein': int(self.goal_protein or 100),

@@ -63,6 +63,12 @@ function formatDateStr(date) {
   return `${y}-${m}-${d}`; // 예: "2026-04-07"
 }
 
+// 시/분 값을 받아 "HH:MM" 형태로 안전하게 표시하는 함수
+function formatTime(hour, minute) {
+  if (hour == null || minute == null) return "-";
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
 // ──────────────────────────────────────────────
 // DayDetailModal 컴포넌트
 // 날짜를 클릭했을 때 나타나는 상세 정보 모달창입니다
@@ -79,6 +85,8 @@ function DayDetailModal({ dateStr, onClose }) {
 
   // dateStr이 바뀔 때마다(날짜가 바뀔 때마다) API를 다시 호출합니다
   useEffect(() => {
+    let isActive = true;
+
     // 함수 내부에서 비동기 처리를 하기 위해 즉시 실행 함수(async IIFE)를 사용합니다
     (async () => {
       // 데이터 로드 시작: 로딩 상태 켜기, 오류/데이터 초기화
@@ -90,15 +98,19 @@ function DayDetailModal({ dateStr, onClose }) {
         // API에서 해당 날짜의 상세 통계를 가져옵니다
         const data = await getDailyStats(dateStr);
         // 가져온 데이터를 상태에 저장합니다
-        setDetail(data);
+        if (isActive) setDetail(data);
       } catch (e) {
         // 오류가 발생하면 오류 메시지를 저장합니다
-        setError("데이터를 불러오지 못했습니다.");
+        if (isActive) setError("데이터를 불러오지 못했습니다.");
       } finally {
         // 성공/실패 상관없이 로딩 상태를 종료합니다
-        setLoading(false);
+        if (isActive) setLoading(false);
       }
     })();
+
+    return () => {
+      isActive = false;
+    };
   }, [dateStr]); // dateStr이 변경될 때만 실행합니다
 
   // 모달 바깥(오버레이)을 클릭하면 모달을 닫습니다
@@ -126,7 +138,7 @@ function DayDetailModal({ dateStr, onClose }) {
         <div className="modal-header">
           <span className="modal-date-title">{formatDisplayDate(dateStr)}</span>
           {/* X 버튼을 누르면 모달을 닫습니다 */}
-          <button className="modal-close-btn" onClick={onClose}>✕</button>
+          <button type="button" className="modal-close-btn" onClick={onClose}>✕</button>
         </div>
 
         {/* 모달 본문 */}
@@ -312,7 +324,7 @@ function DietSection({ entries }) {
 
           {/* 하루 전체 합계 영양소 정보를 표시합니다 */}
           {totals && (
-            <div style={{ marginTop: 8, padding: '8px 12px', background: '#F0FDF4', borderRadius: 8, fontSize: 12, color: '#166534' }}>
+            <div className="diet-total-summary">
               {/* 하루 합계 칼로리 및 영양소 표시 */}
               하루 합계: {totals.calories} kcal · 단백질 {Math.round(totals.protein)}g · 탄수화물 {Math.round(totals.carbs)}g · 지방 {Math.round(totals.fat)}g
             </div>
@@ -371,9 +383,7 @@ function SleepSection({ sleep }) {
             <div className="sleep-stat-item">
               <span className="sleep-stat-label">취침</span>
               <span className="sleep-stat-value">
-                {sleep.bedHour != null
-                  ? `${String(sleep.bedHour).padStart(2, "0")}:${String(sleep.bedMinute).padStart(2, "0")}`
-                  : "-"}
+                {formatTime(sleep.bedHour, sleep.bedMinute)}
               </span>
             </div>
 
@@ -381,9 +391,7 @@ function SleepSection({ sleep }) {
             <div className="sleep-stat-item">
               <span className="sleep-stat-label">기상</span>
               <span className="sleep-stat-value">
-                {sleep.wakeHour != null
-                  ? `${String(sleep.wakeHour).padStart(2, "0")}:${String(sleep.wakeMinute).padStart(2, "0")}`
-                  : "-"}
+                {formatTime(sleep.wakeHour, sleep.wakeMinute)}
               </span>
             </div>
           </div>
@@ -508,7 +516,7 @@ function StatsPage() {
       {/* ── 캘린더 헤더: 이전달 버튼 / 연월 표시 / 다음달 버튼 ── */}
       <div className="calendar-header">
         {/* 이전 달로 이동하는 버튼 */}
-        <button className="calendar-nav-btn" onClick={goToPrevMonth}>‹</button>
+        <button type="button" className="calendar-nav-btn" onClick={goToPrevMonth} aria-label="이전 달 보기">‹</button>
 
         {/* 현재 연도와 월을 "YYYY년 MM월" 형태로 표시합니다 */}
         <span className="calendar-title">
@@ -516,7 +524,7 @@ function StatsPage() {
         </span>
 
         {/* 다음 달로 이동하는 버튼 */}
-        <button className="calendar-nav-btn" onClick={goToNextMonth}>›</button>
+        <button type="button" className="calendar-nav-btn" onClick={goToNextMonth} aria-label="다음 달 보기">›</button>
       </div>
 
       {/* ── 요일 헤더 행: 일~토 ── */}

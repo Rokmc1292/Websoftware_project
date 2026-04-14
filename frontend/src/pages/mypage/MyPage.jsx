@@ -5,9 +5,12 @@ import './MyPage.css';
 const MENU_ITEMS = [
     {id: 'profile', label: '닉네임 변경'},
     {id: 'password', label: '비밀번호 변경'},
+    {id: 'theme', label: '테마 설정'},
     {id: 'note', label: '개인 맞춤 정보'},
     {id: 'delete', label: '계정 삭제'},
 ];
+
+const THEME_STORAGE_KEY = 'nsns_theme';
 
 const createProfileForm = (user = null) => ({
     username: user?.username || '',
@@ -43,6 +46,14 @@ function MyPage() {
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [deleteStep, setDeleteStep] = useState(1);
     const [message, setMessage] = useState({type: '', text: ''});
+    const [themeMode, setThemeMode] = useState(() => {
+        const saved = localStorage.getItem(THEME_STORAGE_KEY);
+        return saved === 'dark' ? 'dark' : 'light';
+    });
+    const isSocialOnlyAccount = Boolean(currentUser?.is_social_only);
+    const visibleMenuItems = isSocialOnlyAccount
+        ? MENU_ITEMS.filter((item) => item.id !== 'password')
+        : MENU_ITEMS;
 
     useEffect(() => {
         const loadCurrentUser = async () => {
@@ -60,6 +71,17 @@ function MyPage() {
         };
         loadCurrentUser();
     }, []);
+
+    useEffect(() => {
+        document.documentElement.setAttribute('data-theme', themeMode);
+        localStorage.setItem(THEME_STORAGE_KEY, themeMode);
+    }, [themeMode]);
+
+    useEffect(() => {
+        if (isSocialOnlyAccount && activeMenu === 'password') {
+            setActiveMenu('profile');
+        }
+    }, [activeMenu, isSocialOnlyAccount]);
 
     const showMessage = (type, text) => setMessage({type, text});
 
@@ -129,8 +151,10 @@ function MyPage() {
 
     const handleDeleteAccount = async (event) => {
         event.preventDefault();
-        if (!deleteForm.username || !deleteForm.email || !deleteForm.current_password) {
-            showMessage('error', '닉네임, 이메일, 비밀번호를 모두 입력해주세요.');
+        if (!deleteForm.username || !deleteForm.email || (!isSocialOnlyAccount && !deleteForm.current_password)) {
+            showMessage('error', isSocialOnlyAccount
+                ? '닉네임과 이메일을 모두 입력해주세요.'
+                : '닉네임, 이메일, 비밀번호를 모두 입력해주세요.');
             return;
         }
         try {
@@ -179,6 +203,16 @@ function MyPage() {
         }
 
         if (activeMenu === 'password') {
+            if (isSocialOnlyAccount) {
+                return (
+                    <div className="myPageForm">
+                        <div className="myPageSectionHeader">
+                            <h3 className="myPageSectionTitle">비밀번호 변경</h3>
+                            <p className="myPageSectionDesc">소셜 전용 계정은 비밀번호를 변경할 수 없습니다.</p>
+                        </div>
+                    </div>
+                );
+            }
             return (
                 <form className="myPageForm" onSubmit={handlePasswordSubmit}>
                     <div className="myPageSectionHeader">
@@ -227,6 +261,33 @@ function MyPage() {
                         </button>
                     </div>
                 </form>
+            );
+        }
+
+        if (activeMenu === 'theme') {
+            return (
+                <div className="myPageForm">
+                    <div className="myPageSectionHeader">
+                        <h3 className="myPageSectionTitle">테마 설정</h3>
+                        <p className="myPageSectionDesc">화이트/다크 모드를 선택할 수 있습니다.</p>
+                    </div>
+                    <div className="myPageThemeOptions">
+                        <button
+                            type="button"
+                            className={`myPageThemeButton${themeMode === 'light' ? ' isActive' : ''}`}
+                            onClick={() => setThemeMode('light')}
+                        >
+                            화이트 모드
+                        </button>
+                        <button
+                            type="button"
+                            className={`myPageThemeButton${themeMode === 'dark' ? ' isActive' : ''}`}
+                            onClick={() => setThemeMode('dark')}
+                        >
+                            다크 모드
+                        </button>
+                    </div>
+                </div>
             );
         }
 
@@ -348,7 +409,7 @@ function MyPage() {
                     <aside className="myPageMenuCard">
                         <div className="myPageMenuTitle">메뉴 선택</div>
                         <div className="myPageMenuList">
-                            {MENU_ITEMS.map((item) => (
+                            {visibleMenuItems.map((item) => (
                                 <button
                                     key={item.id}
                                     type="button"
@@ -392,7 +453,9 @@ function MyPage() {
                             </div>
                         ) : (
                             <form className="myPageModalBody" onSubmit={handleDeleteAccount}>
-                                <div className="myPageSectionDesc">2단계: 현재 닉네임/이메일/비밀번호를 입력하세요.</div>
+                                <div className="myPageSectionDesc">
+                                    2단계: 현재 닉네임/이메일{isSocialOnlyAccount ? '' : '/비밀번호'}를 입력하세요.
+                                </div>
                                 <label className="myPageField">
                                     <span className="myPageFieldLabel">현재 닉네임</span>
                                     <input
@@ -421,21 +484,23 @@ function MyPage() {
                                         required
                                     />
                                 </label>
-                                <label className="myPageField">
-                                    <span className="myPageFieldLabel">현재 비밀번호</span>
-                                    <input
-                                        className="myPageInput"
-                                        type="password"
-                                        value={deleteForm.current_password}
-                                        onChange={(e) => setDeleteForm((prev) => ({
-                                            ...prev,
-                                            current_password: e.target.value
-                                        }))}
-                                        placeholder="현재 비밀번호"
-                                        autoComplete="current-password"
-                                        required
-                                    />
-                                </label>
+                                {!isSocialOnlyAccount ? (
+                                    <label className="myPageField">
+                                        <span className="myPageFieldLabel">현재 비밀번호</span>
+                                        <input
+                                            className="myPageInput"
+                                            type="password"
+                                            value={deleteForm.current_password}
+                                            onChange={(e) => setDeleteForm((prev) => ({
+                                                ...prev,
+                                                current_password: e.target.value
+                                            }))}
+                                            placeholder="현재 비밀번호"
+                                            autoComplete="current-password"
+                                            required
+                                        />
+                                    </label>
+                                ) : null}
                                 <div className="myPageModalActions">
                                     <button type="button" className="myPageGhostButton" onClick={closeDeleteModal}
                                             disabled={isDeletingAccount}>취소

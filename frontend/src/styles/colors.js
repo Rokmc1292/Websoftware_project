@@ -4,34 +4,36 @@
 // colors 객체: 역할별로 이름을 붙인 색상값 (HEX 코드)
 export const colors = {
   // ── 배경 ──
-  bg: '#F5F6FA', // 앱 전체 배경색 — 눈이 덜 피로한 연한 회색
+  bg: 'var(--theme-bg)',
 
   // ── 카드·표면 ──
-  card: '#FFFFFF', // 카드·박스·헤더 배경색 — 흰색
+  card: 'var(--theme-card)',
 
   // ── 테두리 ──
-  border: '#E2E8F0', // 구분선·테두리 색 — 눈에 거슬리지 않는 연한 회색
+  border: 'var(--theme-border)',
 
   // ── 주요 강조색 (파랑-보라 계열) ──
-  primary: '#4F6EF7',      // 버튼·활성 탭·링크에 사용하는 메인 컬러
-  primaryLight: '#EEF1FE', // 주요 강조색의 연한 버전 — 배경 하이라이트에 사용
+  primary: 'var(--theme-primary)',
+  primaryLight: 'var(--theme-primary-light)',
 
   // ── 성공·긍정 (초록 계열) ──
-  success: '#22C55E',      // 성공 메시지·증가 수치·달성 표시에 사용
-  successLight: '#F0FDF4', // 성공 색 연한 배경
+  success: 'var(--theme-success)',
+  successLight: 'var(--theme-success-light)',
 
   // ── 경고·주의 (주황 계열) ──
-  warning: '#F59E0B', // 목표 미달·주의 필요 항목에 사용
+  warning: 'var(--theme-warning)',
+  warningLight: 'var(--theme-warning-light)',
 
   // ── 위험·부정 (빨강 계열) ──
-  danger: '#EF4444', // 에러 메시지·감소 수치·실패 표시에 사용
+  danger: 'var(--theme-danger)',
+  dangerLight: 'var(--theme-danger-light)',
 
   // ── 텍스트 ──
-  text: '#1E293B',   // 기본 본문 텍스트 — 진한 남색 (검정보다 눈이 덜 피로함)
-  sub: '#64748B',    // 보조 설명 텍스트 — 중간 회색
-  muted: '#94A3B8',  // 흐린 부가 정보 텍스트 — 연한 회색
+  text: 'var(--theme-text)',
+  sub: 'var(--theme-sub)',
+  muted: 'var(--theme-muted)',
 
   // ── AI 관련 (보라 계열) ──
-  aiTag: '#7C3AED',      // AI 코치 분석 박스의 텍스트·아이콘 색
-  aiTagLight: '#F5F3FF', // AI 박스 배경색 — 연한 보라
+  aiTag: 'var(--theme-ai)',
+  aiTagLight: 'var(--theme-ai-light)',
 };

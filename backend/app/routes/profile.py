@@ -4,6 +4,7 @@ from sqlalchemy.exc import IntegrityError
 
 from .. import db
 from ..models.profile import UserProfile
+from ..models.social_identity import SocialIdentity
 from ..models.user import User
 
 
@@ -117,8 +118,10 @@ def delete_me():
     current_password = data.get('current_password', '')
     username = (data.get('username') or '').strip()
     email = (data.get('email') or '').strip()
+    identities = SocialIdentity.query.filter_by(user_id=user.id).all()
+    is_social_only_user = bool(identities) and all(identity.is_social_only for identity in identities)
 
-    if not current_password:
+    if not is_social_only_user and not current_password:
         return jsonify({'message': '계정 삭제를 위해 현재 비밀번호를 입력해주세요.'}), 400
     if not username or not email:
         return jsonify({'message': '계정 삭제를 위해 닉네임과 이메일을 모두 입력해주세요.'}), 400
@@ -126,7 +129,7 @@ def delete_me():
         return jsonify({'message': '닉네임이 현재 계정 정보와 일치하지 않습니다.'}), 400
     if email != (user.email or ''):
         return jsonify({'message': '이메일이 현재 계정 정보와 일치하지 않습니다.'}), 400
-    if not user.check_password(current_password):
+    if not is_social_only_user and not user.check_password(current_password):
         return jsonify({'message': '현재 비밀번호가 올바르지 않습니다.'}), 400
 
     try:

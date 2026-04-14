@@ -60,18 +60,23 @@ function SessionCard({ session, onDelete, onAnalyze, isAnalyzing, onEdit, onTogg
         const unknownNames = names.filter(n => !(n in bestMap));
         if (unknownNames.length === 0) return; // 모두 캐시에 있으면 재조회 불필요
 
-        // 모든 미조회 종목을 병렬로 요청 — Promise.all()로 동시에 여러 API 호출
+        let isActive = true;
+
+        // 모든 미조회 종목을 순차 요청 — 중간에 카드가 닫히거나 페이지를 떠나도
+        // 불필요한 대기열이 생기지 않도록 하고, 상태 업데이트는 마운트된 경우에만 수행
         const fetchBests = async () => {
-            const results = await Promise.all(
-                unknownNames.map(async (name) => {
-                    try {
-                        const data = await getExerciseBest(name);
-                        return { name, best: data }; // { name, best_weight_kg, best_reps }
-                    } catch {
-                        return { name, best: null }; // 오류 시 null로 처리
-                    }
-                })
-            );
+            const results = [];
+            for (const name of unknownNames) {
+                try {
+                    const data = await getExerciseBest(name);
+                    results.push({ name, best: data }); // { name, best_weight_kg, best_reps }
+                } catch {
+                    results.push({ name, best: null }); // 오류 시 null로 처리
+                }
+                if (!isActive) return;
+            }
+
+            if (!isActive) return;
 
             // 새로 조회한 결과를 bestMap에 추가
             setBestMap(prev => {
@@ -85,6 +90,9 @@ function SessionCard({ session, onDelete, onAnalyze, isAnalyzing, onEdit, onTogg
         };
 
         fetchBests();
+        return () => {
+            isActive = false;
+        };
     }, [collapsed]); // collapsed 상태가 바뀔 때마다 실행 (false → 펼쳐질 때 조회)
 
 
@@ -427,7 +435,7 @@ function SessionCard({ session, onDelete, onAnalyze, isAnalyzing, onEdit, onTogg
                                                         style={{
                                                             fontSize: 12,
                                                             color: colors.sub,
-                                                            background: '#fff',
+                                                            background: colors.card,
                                                             border: `1px solid ${colors.border}`,
                                                             borderRadius: 4,
                                                             padding: '2px 8px',

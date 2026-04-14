@@ -1,11 +1,15 @@
 .sleep-page {
-  --sleep-card-bg: #ffffff;
-  --sleep-border: #e5e7eb;
-  --sleep-text: #111827;
-  --sleep-sub: #6b7280;
-  --sleep-bg: #ffffff;
-  --sleep-accent: #7c3aed;
-  --sleep-accent-light: rgba(124, 58, 237, 0.12);
+  --sleep-card-bg: var(--theme-card);
+  --sleep-border: var(--theme-border);
+  --sleep-text: var(--theme-text);
+  --sleep-sub: var(--theme-sub);
+  --sleep-bg: var(--theme-bg);
+  --sleep-accent: var(--theme-ai);
+  --sleep-accent-light: var(--theme-ai-light);
+  --sleep-info-light: var(--theme-primary-light);
+  --sleep-success-light: var(--theme-success-light);
+  --sleep-warning-light: var(--theme-warning-light);
+  --sleep-danger-light: var(--theme-danger-light);
 }
 
 .sleep-page-root {
@@ -127,7 +131,7 @@
 }
 
 .sleep-status-chip.is-inactive {
-  background: #fff;
+  background: var(--sleep-bg);
   color: var(--sleep-sub);
 }
 
@@ -180,8 +184,8 @@
   height: 36px;
   border-radius: 8px;
   border: 1px solid var(--sleep-border);
-  background: #fff;
-  color: #e14b4b;
+  background: var(--sleep-bg);
+  color: var(--theme-danger);
   font-weight: 700;
   font-size: 13px;
   flex-shrink: 0;

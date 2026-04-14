@@ -6,12 +6,13 @@
 --
 -- 테이블 목록 (의존 관계 순서대로 작성 — 참조 대상 테이블이 먼저 나와야 함)
 --   1. users              — 회원 정보
---   2. user_profiles      — 사용자 프로필(개인 맞춤 정보)
---   3. workout_sessions   — 운동 세션 (날짜·메모)
---   4. workout_sets       — 세션 내 개별 세트 (종목·중량·횟수)
---   5. diet_entries       — 식단 카드(제목·즐겨찾기)
---   6. diet_items         — 식단 카드 내 음식 item(칼로리·영양소)
---   7. sleep_records      — 수면 기록 (취침·기상·품질)
+--   2. social_identities  — 소셜 계정 연동 정보
+--   3. user_profiles      — 사용자 프로필(개인 맞춤 정보)
+--   4. workout_sessions   — 운동 세션 (날짜·메모)
+--   5. workout_sets       — 세션 내 개별 세트 (종목·중량·횟수)
+--   6. diet_entries       — 식단 카드(제목·즐겨찾기)
+--   7. diet_items         — 식단 카드 내 음식 item(칼로리·영양소)
+--   8. sleep_records      — 수면 기록 (취침·기상·품질)
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
@@ -40,6 +41,7 @@ DROP TABLE IF EXISTS diet_items;
 DROP TABLE IF EXISTS diet_entries;
 DROP TABLE IF EXISTS workout_sets;
 DROP TABLE IF EXISTS workout_sessions;
+DROP TABLE IF EXISTS social_identities;
 DROP TABLE IF EXISTS user_profiles;
 DROP TABLE IF EXISTS users;
 
@@ -90,6 +92,22 @@ PRIMARY KEY (id),
     -- UNIQUE KEY  : email 중복 저장 불가 — 같은 이메일로 두 번 가입 방지
     -- 인덱스 이름 규칙: uq_테이블명_컬럼명 (uq = unique)
 
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci;
+
+
+CREATE TABLE social_identities (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    user_id INT UNSIGNED NOT NULL,
+    provider VARCHAR(20) NOT NULL,
+    provider_user_id VARCHAR(120) NOT NULL,
+    is_social_only TINYINT(1) NOT NULL DEFAULT 1,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_social_provider_user_id (provider, provider_user_id),
+    INDEX idx_social_user_id (user_id),
+    CONSTRAINT fk_social_identity_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_unicode_ci;
@@ -361,6 +379,8 @@ SET FOREIGN_KEY_CHECKS = 1;
 --
 --  users (1)
 --   │
+--   ├──< social_identities (多) : 한 사용자가 여러 소셜 계정을 연결 가능
+--   │
 --   ├──< workout_sessions (多)  : 한 사용자가 여러 번 운동 가능
 --   │         │
 --   │         └──< workout_sets (多)  : 한 세션에 여러 종목·세트 기록
@@ -381,6 +401,7 @@ SET FOREIGN_KEY_CHECKS = 1;
 -- =============================================================================
 -- SHOW TABLES;                         -- 생성된 테이블 목록 확인
 -- DESCRIBE users;                      -- users 컬럼 구조 확인
+-- DESCRIBE social_identities;
 -- DESCRIBE user_profiles;
 -- DESCRIBE workout_sessions;
 -- DESCRIBE workout_sets;

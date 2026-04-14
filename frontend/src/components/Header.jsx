@@ -10,8 +10,11 @@ import { colors } from '../styles/colors.js'; // 앱 전체 공통 색상 상수
 import { logout } from '../api/authApi.js';   // 로그아웃 함수 — 토큰 삭제 후 로그인 페이지로 이동
 
 // ─────────────────────────────────────────────
-// 탭 정의
+// 상수
 // ─────────────────────────────────────────────
+const THEME_STORAGE_KEY = 'nsns_theme';
+
+// 탭 정의
 // 각 탭이 클릭됐을 때 이동할 경로(path)와 화면에 표시할 이름(label)을 함께 관리
 // 탭을 추가하거나 순서를 바꾸려면 이 배열만 수정하면 됨
 const TABS = [
@@ -31,6 +34,24 @@ function Header() {
   const location = useLocation();
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const accountMenuRef = useRef(null);
+
+  // 테마 상태
+  const [themeMode, setThemeMode] = useState(() => {
+    const saved = localStorage.getItem(THEME_STORAGE_KEY);
+    return saved === 'dark' ? 'dark' : 'light';
+  });
+
+  // ─────────────────────────────────────────────
+  // 테마 토글 + DOM 업데이트
+  // ─────────────────────────────────────────────
+  const handleThemeToggle = () => {
+    setThemeMode(prev => {
+      const newMode = prev === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', newMode);
+      localStorage.setItem(THEME_STORAGE_KEY, newMode);
+      return newMode;
+    });
+  };
 
   // ─────────────────────────────────────────────
   // 이벤트 핸들러
@@ -86,7 +107,7 @@ function Header() {
         style={{
           maxWidth: 960,          // 너무 넓어지지 않도록 최대 너비 제한
           margin: '0 auto',       // 좌우 auto 마진으로 가운데 정렬
-          display: 'flex',        // 자식 요소(로고·탭·아바타)를 가로로 나란히 배치
+          display: 'flex',        // 자식 요소(로고·탭·토글·아바타)를 가로로 나란히 배치
           alignItems: 'center',   // 세로 방향 가운데 정렬
           justifyContent: 'space-between', // 세 영역을 양 끝·가운데에 균등 배치
           height: 56,             // 헤더 높이 56px
@@ -119,19 +140,6 @@ function Header() {
               borderRadius: 6,    // 모서리를 약간 둥글게 — 로고 느낌
             }}
           />
-
-          {/* 서비스 이름 텍스트 */}
-          <span
-            style={{
-              fontWeight: 800,         // 매우 굵게 (ExtraBold) — 로고 느낌
-              fontSize: 18,            // 18px
-              color: colors.primary,   // 주요 파랑-보라 색 — colors.js의 primary 값
-              letterSpacing: '-0.5px', // 자간 약간 좁게 — 짧은 이름을 더 임팩트 있게
-            }}
-          >
-            hill
-            {/* 서비스 이름 "hill" — 소문자 그대로 사용 (브랜드 스타일) */}
-          </span>
         </div>
 
         {/* ── 가운데: 탭 네비게이션 ── */}
@@ -160,7 +168,7 @@ function Header() {
                   fontWeight: 600,        // 세미볼드
                   // 활성 탭: 파란 배경 + 흰 글씨 / 비활성 탭: 투명 배경 + 회색 글씨
                   background: isActive ? colors.primary : 'transparent',
-                  color: isActive ? '#ffffff' : colors.sub,
+                  color: isActive ? colors.card : colors.sub,
                   transition: 'all 0.15s ease', // 색 변화가 0.15초 동안 부드럽게 전환
                 }}
               >
@@ -170,93 +178,122 @@ function Header() {
           })}
         </nav>
 
-        {/* ── 오른쪽: 사용자 아바타 메뉴 ── */}
-        <div ref={accountMenuRef} style={{ position: 'relative' }}>
+        {/* ── 오른쪽: 테마 토글 + 계정 메뉴 ── */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+
+          {/* 테마 토글 버튼 */}
           <button
-            type="button"
-            onClick={() => setIsAccountMenuOpen((prev) => !prev)}
-            title="계정 메뉴"
-            aria-haspopup="menu"
-            aria-expanded={isAccountMenuOpen}
+            onClick={handleThemeToggle}
+            title={themeMode === 'dark' ? '라이트 모드로 전환' : '다크 모드로 전환'}
             style={{
+              background: colors.primaryLight,
+              border: `1px solid ${colors.border}`,
+              borderRadius: 6,
               width: 34,
               height: 34,
-              background: colors.primaryLight,
-              borderRadius: '50%',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: 16,
               cursor: 'pointer',
-              userSelect: 'none',
+              fontSize: 16,
+              color: colors.primary,
               transition: 'opacity 0.15s ease',
-              border: 'none',
             }}
             onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.75')}
             onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
           >
-            👤
+            {themeMode === 'dark' ? '☀️' : '🌙'}
           </button>
 
-          {isAccountMenuOpen ? (
-            <div
-              role="menu"
+          {/* 계정 메뉴 */}
+          <div ref={accountMenuRef} style={{ position: 'relative' }}>
+            <button
+              type="button"
+              onClick={() => setIsAccountMenuOpen((prev) => !prev)}
+              title="계정 메뉴"
+              aria-haspopup="menu"
+              aria-expanded={isAccountMenuOpen}
               style={{
-                position: 'absolute',
-                top: 'calc(100% + 8px)',
-                right: 0,
-                minWidth: 148,
-                background: colors.card,
-                border: `1px solid ${colors.border}`,
-                borderRadius: 12,
-                boxShadow: '0 12px 28px rgba(15, 23, 42, 0.12)',
-                padding: 6,
-                zIndex: 200,
+                width: 34,
+                height: 34,
+                background: colors.primaryLight,
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 16,
+                cursor: 'pointer',
+                userSelect: 'none',
+                transition: 'opacity 0.15s ease',
+                border: 'none',
               }}
+              onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.75')}
+              onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
             >
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  setIsAccountMenuOpen(false);
-                  navigate('/mypage');
-                }}
+              👤
+            </button>
+
+            {isAccountMenuOpen ? (
+              <div
+                role="menu"
                 style={{
-                  width: '100%',
-                  border: 'none',
-                  background: 'transparent',
-                  borderRadius: 8,
-                  padding: '10px 12px',
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                  color: colors.text,
-                  fontSize: 13,
-                  fontWeight: 600,
+                  position: 'absolute',
+                  top: 'calc(100% + 8px)',
+                  right: 0,
+                  minWidth: 148,
+                  background: colors.card,
+                  border: `1px solid ${colors.border}`,
+                  borderRadius: 12,
+                  boxShadow: '0 12px 28px rgba(15, 23, 42, 0.12)',
+                  padding: 6,
+                  zIndex: 200,
                 }}
               >
-                마이페이지
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                onClick={handleLogout}
-                style={{
-                  width: '100%',
-                  border: 'none',
-                  background: 'transparent',
-                  borderRadius: 8,
-                  padding: '10px 12px',
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                  color: colors.danger,
-                  fontSize: 13,
-                  fontWeight: 600,
-                }}
-              >
-                로그아웃
-              </button>
-            </div>
-          ) : null}
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setIsAccountMenuOpen(false);
+                    navigate('/mypage');
+                  }}
+                  style={{
+                    width: '100%',
+                    border: 'none',
+                    background: 'transparent',
+                    borderRadius: 8,
+                    padding: '10px 12px',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    color: colors.text,
+                    fontSize: 13,
+                    fontWeight: 600,
+                  }}
+                >
+                  마이페이지
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={handleLogout}
+                  style={{
+                    width: '100%',
+                    border: 'none',
+                    background: 'transparent',
+                    borderRadius: 8,
+                    padding: '10px 12px',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    color: colors.danger,
+                    fontSize: 13,
+                    fontWeight: 600,
+                  }}
+                >
+                  로그아웃
+                </button>
+              </div>
+            ) : null}
+          </div>
+
         </div>
 
       </div>

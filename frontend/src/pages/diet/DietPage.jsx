@@ -272,6 +272,8 @@ function DietPage() {
     const [expandedDietIds, setExpandedDietIds] = useState([]);
     const [aiPreview, setAiPreview] = useState(INITIAL_AI_PREVIEW);
     const [isAnalyzingImage, setIsAnalyzingImage] = useState(false);
+    const [aiAnalysisProgress, setAiAnalysisProgress] = useState(0);
+    const [aiAnalysisPhase, setAiAnalysisPhase] = useState('idle');
     const [aiAnalysisError, setAiAnalysisError] = useState('');
     const [isAiCoachLoading, setIsAiCoachLoading] = useState(false);
     const [aiCoachMessage, setAiCoachMessage] = useState('식단을 추가하면 AI 코치 피드백이 표시됩니다.');
@@ -312,6 +314,7 @@ function DietPage() {
 
     const [isDietEditModalOpen, setIsDietEditModalOpen] = useState(false);
     const [dietEditForm, setDietEditForm] = useState({dietId: null, title: '', itemId: null, items: []});
+    const [hasLoadedCurrentUser, setHasLoadedCurrentUser] = useState(false);
 
     const fileInputRef = useRef(null);
     const uploadTriggerRef = useRef(null);
@@ -412,6 +415,9 @@ function DietPage() {
         setIsUploadModalOpen(false);
         setSelectedImageFile(null);
         setSelectedImagePreview('');
+        setAiAnalysisProgress(0);
+        setAiAnalysisPhase('idle');
+        setAiAnalysisError('');
         if (fileInputRef.current) fileInputRef.current.value = '';
         if (uploadTriggerRef.current) uploadTriggerRef.current.focus();
     };
@@ -474,9 +480,12 @@ function DietPage() {
     }, [isUploadModalOpen, isManualModalOpen, isFavoritesModalOpen, isAiEditModalOpen, isAiSaveModalOpen, isGoalModalOpen, isDietEditModalOpen]);
 
     useEffect(() => {
+        let isActive = true;
+
         const loadCurrentUser = async () => {
             try {
                 const data = await getCurrentUser();
+                if (!isActive) return;
                 const profile = data?.user?.profile || {};
                 setUserProfile({
                     profile_note: profile.profile_note || data?.user?.profile_note || '',
@@ -487,18 +496,33 @@ function DietPage() {
                 });
                 setUserProfileNote(profile.profile_note || data?.user?.profile_note || '');
             } catch (error) {
-                console.error('사용자 정보 조회 실패:', error);
+                if (error?.response?.status !== 401) {
+                    console.error('사용자 정보 조회 실패:', error);
+                }
+            }
+            finally {
+                if (isActive) {
+                    setHasLoadedCurrentUser(true);
+                }
             }
         };
+
         loadCurrentUser();
+        return () => {
+            isActive = false;
+        };
     }, []);
 
     useEffect(() => {
+        if (!hasLoadedCurrentUser) return;
+
+        let isActive = true;
+
         const loadEntries = async () => {
             const seq = ++entryLoadSeqRef.current;
             try {
                 const data = await getDietEntries({date: selectedDate});
-                if (seq !== entryLoadSeqRef.current) return;
+                if (!isActive || seq !== entryLoadSeqRef.current) return;
                 applyEntries(data.entries || []);
                 if (data.goals) {
                     setDailyGoals({
@@ -510,11 +534,16 @@ function DietPage() {
                 }
                 setFoodNameSuggestions(Array.isArray(data.food_name_suggestions) ? data.food_name_suggestions : []);
             } catch (error) {
-                console.error('식단 목록 조회 실패:', error);
+                if (error?.response?.status !== 401) {
+                    console.error('식단 목록 조회 실패:', error);
+                }
             }
         };
         loadEntries();
-    }, [selectedDate]);
+        return () => {
+            isActive = false;
+        };
+    }, [selectedDate, hasLoadedCurrentUser]);
 
     const handleRequestAiCoach = async () => {
         if (isAiCoachLoading) return;
@@ -619,6 +648,9 @@ function DietPage() {
     const handleFileChange = (event) => {
         const file = event.target.files?.[0] || null;
         setSelectedImageFile(file);
+        setAiAnalysisError('');
+        setAiAnalysisProgress(0);
+        setAiAnalysisPhase('idle');
         if (!file) {
             setSelectedImagePreview('');
             return;
@@ -632,8 +664,20 @@ function DietPage() {
         if (!selectedImageFile || !selectedImagePreview) return;
         setIsAnalyzingImage(true);
         setAiAnalysisError('');
+        setAiAnalysisProgress(0);
+        setAiAnalysisPhase('uploading');
         try {
-            const response = await analyzeDietImage(selectedImageFile);
+            const response = await analyzeDietImage(selectedImageFile, {
+                onUploadProgress: (event) => {
+                    if (!event.total) return;
+                    const isComplete = event.loaded >= event.total;
+                    const percent = isComplete ? 100 : Math.min(99, Math.round((event.loaded / event.total) * 100));
+                    setAiAnalysisProgress(percent);
+                    setAiAnalysisPhase(isComplete ? 'analyzing' : 'uploading');
+                },
+            });
+            setAiAnalysisProgress(100);
+            setAiAnalysisPhase('done');
             const analyzedItems = normalizeItems((response?.items || []).map((item) => ({
                 id: getNextItemId(),
                 name: item.name,
@@ -649,7 +693,18 @@ function DietPage() {
             }));
             closeUploadModal();
         } catch (error) {
-            setAiAnalysisError(error?.response?.data?.message || 'AI 이미지 분석에 실패했습니다.');
+            const isTimeout = error?.code === 'ECONNABORTED' || String(error?.message || '').toLowerCase().includes('timeout');
+            const isCanceled = error?.code === 'ERR_CANCELED' || String(error?.message || '').toLowerCase().includes('canceled');
+            if (!isCanceled) {
+                console.error('AI 이미지 분석 실패:', error);
+            }
+            setAiAnalysisPhase('error');
+            setAiAnalysisError(
+                error?.response?.data?.message ||
+                (isTimeout ? 'AI 이미지 분석이 오래 걸리고 있습니다. 잠시 후 다시 시도해주세요.' : null) ||
+                (isCanceled ? 'AI 이미지 분석 요청이 중단되었습니다. 다시 시도해주세요.' : null) ||
+                'AI 이미지 분석에 실패했습니다.'
+            );
         } finally {
             setIsAnalyzingImage(false);
         }
@@ -891,7 +946,12 @@ function DietPage() {
                     actions={<div className="dietUploadActions">
                         <button type="button" className="dietUploadCancelButton" onClick={closeUploadModal}>취소</button>
                         <button type="button" className="dietUploadSubmitButton" onClick={handleStartAnalysis}
-                                disabled={!selectedImageFile || !selectedImagePreview || isAnalyzingImage}>{isAnalyzingImage ? '분석 중...' : '분석 시작'}
+                                disabled={!selectedImageFile || !selectedImagePreview || isAnalyzingImage}>
+                            {isAnalyzingImage
+                                ? (aiAnalysisPhase === 'analyzing'
+                                    ? '서버 분석 중...'
+                                    : `업로드 중 ${aiAnalysisProgress}%`)
+                                : (aiAnalysisError ? '다시 시도' : '분석 시작')}
                         </button>
                     </div>}
                 >
@@ -909,6 +969,27 @@ function DietPage() {
                             </div> : null}
                         {selectedImageFile ? <p className="dietUploadFileName"
                                                 aria-live="polite">선택됨: {selectedImageFile.name}</p> : null}
+                        {isAnalyzingImage || aiAnalysisProgress > 0 ? (
+                            <div className="dietUploadProgressWrap" aria-live="polite">
+                                <div className="dietUploadProgressLabel">
+                                    {aiAnalysisPhase === 'analyzing'
+                                        ? '이미지 업로드 완료, AI가 식단을 분석 중입니다.'
+                                        : `업로드 진행률 ${aiAnalysisProgress}%`}
+                                </div>
+                                <div className="dietUploadProgressBar">
+                                    <div
+                                        className="dietUploadProgressFill"
+                                        style={{width: `${Math.max(4, aiAnalysisProgress)}%`}}
+                                    />
+                                </div>
+                            </div>
+                        ) : null}
+                        {aiAnalysisError ? (
+                            <div className="dietUploadErrorBox" role="alert">
+                                <p className="dietUploadErrorText">{aiAnalysisError}</p>
+                                <p className="dietUploadErrorHint">파일은 유지됩니다. 아래 버튼으로 바로 다시 시도할 수 있습니다.</p>
+                            </div>
+                        ) : null}
                     </div>
                 </ModalShell>
             ) : null}

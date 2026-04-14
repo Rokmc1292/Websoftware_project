@@ -322,7 +322,7 @@ function WorkoutPage() {
                     }}
                     style={{
                         background: showForm ? colors.border : colors.primary,
-                        color: showForm ? colors.sub : '#fff',
+                        color: showForm ? colors.sub : colors.card,
                         border: 'none',
                         borderRadius: 8,
                         padding: '8px 16px',
@@ -381,7 +381,7 @@ function WorkoutPage() {
                         borderRadius: 8,
                         fontSize: 13,
                         color: colors.text,
-                        background: '#fff',
+                            background: colors.card,
                         outline: 'none',
                         boxSizing: 'border-box',
                     }}
@@ -397,7 +397,7 @@ function WorkoutPage() {
                         borderRadius: 8,
                         fontSize: 13,
                         color: colors.text,
-                        background: '#fff',
+                            background: colors.card,
                         outline: 'none',
                         cursor: 'pointer',
                     }}
@@ -418,7 +418,7 @@ function WorkoutPage() {
                         borderRadius: 8,
                         fontSize: 13,
                         color: filterMonth ? colors.text : colors.muted,
-                        background: '#fff',
+                            background: colors.card,
                         outline: 'none',
                         cursor: 'pointer',
                     }}
@@ -617,7 +617,7 @@ function WorkoutPage() {
                     <div
                         onClick={e => e.stopPropagation()}
                         style={{
-                            background: '#fff',
+                            background: colors.card,
                             width: 360,         // 패널 너비
                             maxWidth: '90vw',   // 작은 화면에서 90%로 제한
                             height: '100%',

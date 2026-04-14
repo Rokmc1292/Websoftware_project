@@ -32,17 +32,18 @@ export const updateDietGoals = async (goals) => {
     return response.data;
 };
 
-export const analyzeDietImage = async (file) => {
+export const analyzeDietImage = async (file, options = {}) => {
     const formData = new FormData();
     formData.append('image', file);
     const response = await apiClient.post('/diet/ai/analyze-image', formData, {
-        headers: {'Content-Type': 'multipart/form-data'},
+        timeout: 120000,
+        onUploadProgress: options.onUploadProgress,
     });
     return response.data;
 };
 
 export const getDietCoachFeedback = async (payload) => {
-    const response = await apiClient.post('/diet/ai/coach', payload);
+    const response = await apiClient.post('/diet/ai/coach', payload, { timeout: 120000 });
     return response.data;
 };
 

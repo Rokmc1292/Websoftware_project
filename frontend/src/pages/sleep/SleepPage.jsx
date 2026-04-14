@@ -838,33 +838,33 @@ export default function SleepPage() {
     switch (intensity) {
       case "매우 낮음":
         return {
-          background: "#f3f4f6",
-          color: "#6b7280",
-          border: "1px solid #d1d5db",
+          background: colors.bg,
+          color: colors.sub,
+          border: `1px solid ${colors.border}`,
         };
       case "낮음":
         return {
-          background: "#eff6ff",
-          color: "#2563eb",
-          border: "1px solid #bfdbfe",
+          background: colors.primaryLight,
+          color: colors.primary,
+          border: `1px solid ${colors.border}`,
         };
       case "중간":
         return {
-          background: "#ecfdf5",
-          color: "#059669",
-          border: "1px solid #a7f3d0",
+          background: colors.successLight,
+          color: colors.success,
+          border: `1px solid ${colors.border}`,
         };
       case "중간 이상":
         return {
-          background: "#fffbeb",
-          color: "#d97706",
-          border: "1px solid #fde68a",
+          background: colors.warningLight,
+          color: colors.warning,
+          border: `1px solid ${colors.border}`,
         };
       case "높음":
         return {
-          background: "#fef2f2",
-          color: "#dc2626",
-          border: "1px solid #fecaca",
+          background: colors.dangerLight,
+          color: colors.danger,
+          border: `1px solid ${colors.border}`,
         };
       default:
         return {
@@ -1160,7 +1160,7 @@ export default function SleepPage() {
         "--sleep-border": colors.border,
         "--sleep-text": colors.text,
         "--sleep-sub": colors.sub,
-        "--sleep-bg": colors.background || "#fff",
+        "--sleep-bg": colors.card,
         "--sleep-accent": colors.aiTag,
         "--sleep-accent-light": colors.aiTagLight,
       }}

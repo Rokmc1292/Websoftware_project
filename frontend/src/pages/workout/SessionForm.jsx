@@ -339,7 +339,7 @@ function SessionForm({ onSessionCreated, editSession = null, onSessionUpdated, o
         borderRadius: 6,
         fontSize: 13,
         color: colors.text,
-        background: '#fff',
+        background: colors.card,
         boxSizing: 'border-box',
         outline: 'none',
     };

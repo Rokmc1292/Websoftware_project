@@ -26,6 +26,17 @@ apiClient.interceptors.request.use(
     // localStorage : 브라우저에 데이터를 영구적으로 저장하는 공간 (탭을 닫아도 유지됨)
     const token = localStorage.getItem('access_token'); // 저장된 JWT 토큰을 꺼냄
 
+    const isFormData = typeof FormData !== 'undefined' && config.data instanceof FormData;
+    if (isFormData && config.headers) {
+      if (typeof config.headers.delete === 'function') {
+        config.headers.delete('Content-Type');
+        config.headers.delete('content-type');
+      } else {
+        delete config.headers['Content-Type'];
+        delete config.headers['content-type'];
+      }
+    }
+
     if (token) {
       // 토큰이 있으면 Authorization 헤더에 'Bearer 토큰값' 형식으로 추가
       // 서버는 이 헤더를 보고 "이 사용자는 로그인된 사용자다"라고 인식함
@@ -93,6 +104,27 @@ export async function login(credentials) {
   localStorage.setItem('access_token', access_token);
 
   return { access_token, user }; // 토큰과 사용자 정보를 호출한 곳으로 반환
+}
+
+export function loginWithSocial(provider) {
+  const safeProvider = String(provider || '').toLowerCase();
+  if (!safeProvider) return;
+  window.location.href = `/api/auth/social/${safeProvider}/start`;
+}
+
+export function applySocialToken(token) {
+  if (!token) return false;
+  localStorage.setItem('access_token', token);
+  return true;
+}
+
+export async function exchangeSocialCode(code) {
+  const response = await apiClient.post('/auth/social/exchange', { code });
+  const { access_token, user } = response.data;
+  if (access_token) {
+    localStorage.setItem('access_token', access_token);
+  }
+  return { access_token, user };
 }
 
 // ─────────────────────────────────────────────

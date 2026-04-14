@@ -3,6 +3,7 @@ import './IntroPage.css';
 
 function IntroPage() {
   const navigate = useNavigate();
+  const signupPath = '/login?mode=signup';
 
   const features = [
     {
@@ -64,7 +65,7 @@ function IntroPage() {
             <button
               type="button"
               className="intro-header-signup"
-              onClick={() => navigate('/signup')}
+              onClick={() => navigate(signupPath)}
             >
               회원가입
             </button>
@@ -93,7 +94,7 @@ function IntroPage() {
                 <button
                   type="button"
                   className="intro-primary-btn"
-                  onClick={() => navigate('/signup')}
+                  onClick={() => navigate(signupPath)}
                 >
                   무료로 시작하기
                 </button>
@@ -218,7 +219,7 @@ function IntroPage() {
                 <button
                   type="button"
                   className="intro-final-primary"
-                  onClick={() => navigate('/signup')}
+                  onClick={() => navigate(signupPath)}
                 >
                   회원가입
                 </button>
