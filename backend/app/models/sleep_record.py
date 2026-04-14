@@ -8,7 +8,14 @@ class SleepRecord(db.Model):
     __tablename__ = "sleep_records"
 
     id = db.Column(db.Integer, primary_key=True)
-    record_date = db.Column(db.Date, nullable=False, unique=True)
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    record_date = db.Column(db.Date, nullable=False)
 
     bed_hour = db.Column(db.Integer, nullable=False)
     bed_minute = db.Column(db.Integer, nullable=False)
@@ -17,14 +24,14 @@ class SleepRecord(db.Model):
 
     sleep_hours = db.Column(db.Float, nullable=False)
     satisfaction = db.Column(db.Float, nullable=False, default=0)
-    memo = db.Column(db.Text, nullable=True, default="")
+    memo = db.Column(db.String(500), nullable=True, default="")
 
     sleep_quality = db.Column(db.Integer, nullable=False, default=0)
     freshness = db.Column(db.Integer, nullable=False, default=0)
     growth = db.Column(db.Integer, nullable=False, default=0)
     mission_rate = db.Column(db.Integer, nullable=False, default=0)
 
-    goals_json = db.Column(db.Text, nullable=False, default="[]")
+    goals_json = db.Column(db.JSON, nullable=True)
 
     created_at = db.Column(
         db.DateTime,
@@ -38,16 +45,24 @@ class SleepRecord(db.Model):
         onupdate=datetime.utcnow,
     )
 
+    __table_args__ = (
+        db.UniqueConstraint("user_id", "record_date", name="uq_sleep_user_date"),
+    )
+
     def get_goals(self):
         try:
-            parsed = json.loads(self.goals_json or "[]")
+            if self.goals_json is None:
+                return []
+            if isinstance(self.goals_json, list):
+                return self.goals_json
+            parsed = json.loads(self.goals_json)
             return parsed if isinstance(parsed, list) else []
         except Exception:
             return []
 
     def set_goals(self, goals):
         safe_goals = goals if isinstance(goals, list) else []
-        self.goals_json = json.dumps(safe_goals, ensure_ascii=False)
+        self.goals_json = safe_goals
 
     def _date_to_string(self):
         if isinstance(self.record_date, date):
@@ -57,6 +72,7 @@ class SleepRecord(db.Model):
     def to_dict(self):
         return {
             "id": self.id,
+            "user_id": self.user_id,
             "date": self._date_to_string(),
             "bedHour": self.bed_hour,
             "bedMinute": self.bed_minute,
@@ -64,7 +80,7 @@ class SleepRecord(db.Model):
             "wakeMinute": self.wake_minute,
             "sleepHours": self.sleep_hours,
             "satisfaction": self.satisfaction,
-            "memo": self.memo,
+            "memo": self.memo or "",
             "sleepQuality": self.sleep_quality,
             "freshness": self.freshness,
             "growth": self.growth,

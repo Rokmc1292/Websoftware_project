@@ -38,3 +38,13 @@ class Config:
     # ─────────────────────────────────────────────
     ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY', '')
     ANTHROPIC_MODEL = os.getenv('ANTHROPIC_MODEL', 'claude-3-5-sonnet-20241022')
+
+    # ─────────────────────────────────────────────
+    # 🔥 Fitbit API 설정 (추가)
+    # ─────────────────────────────────────────────
+    FITBIT_CLIENT_ID = os.getenv('FITBIT_CLIENT_ID')
+    FITBIT_CLIENT_SECRET = os.getenv('FITBIT_CLIENT_SECRET')
+    FITBIT_REDIRECT_URI = os.getenv('FITBIT_REDIRECT_URI')
+
+    # 프론트 주소 (OAuth redirect 후 돌아갈 곳)
+    FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173')
