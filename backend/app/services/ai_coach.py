@@ -2,13 +2,11 @@
 # 운동 세션 데이터를 Claude AI에게 전달하고 분석·조언 텍스트를 받아 반환
 # 이 파일은 순수하게 AI API 통신만 담당 — 라우트 코드와 분리해 유지보수 편의성 향상
 
-import os  # os : 환경변수(TAE_ANTHROPIC_API_KEY)를 읽기 위한 Python 표준 모듈
-from typing import Any, cast
+from flask import current_app
 
 # anthropic : Anthropic 공식 Python SDK — Claude API를 쉽게 사용하도록 도와주는 라이브러리
 # 'pip install anthropic' 으로 설치
 import anthropic
-from anthropic.types import MessageParam
 
 
 def analyze_workout(session_data):
@@ -41,16 +39,14 @@ def analyze_workout(session_data):
         # 1단계: Anthropic 클라이언트 생성
         # ─────────────────────────────────────────────
 
-        # os.getenv('TAE_ANTHROPIC_API_KEY') : .env 파일에 저장된 API 키를 환경변수에서 읽음
-        # api_key를 직접 코드에 쓰면 GitHub에 올릴 때 키가 노출되므로 반드시 환경변수로 관리
-        api_key = os.getenv('TAE_ANTHROPIC_API_KEY')
+        api_key = (current_app.config.get('TAE_ANTHROPIC_API_KEY') or '').strip()
 
         # API 키가 없으면 Claude를 호출할 수 없으므로 즉시 안내 메시지 반환
         if not api_key:
             # TAE_ANTHROPIC_API_KEY 환경변수 미설정 시 사용자에게 안내
             return 'AI 분석을 사용하려면 TAE_ANTHROPIC_API_KEY 환경변수를 설정해주세요.'
 
-        model = os.getenv('TAE_ANTHROPIC_MODEL', '').strip()
+        model = (current_app.config.get('TAE_ANTHROPIC_MODEL') or '').strip()
         if not model:
             return 'AI 분석을 사용하려면 TAE_ANTHROPIC_MODEL 환경변수를 설정해주세요.'
 

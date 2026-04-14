@@ -1,15 +1,16 @@
 import json
-import os
 import re
 from typing import Any, cast
+
+from flask import current_app
 
 try:
     import google.generativeai as genai
 except ImportError:  # pragma: no cover
     genai = None
 
-DEFAULT_IMAGE_MODEL = (os.getenv('SUNG_GOOGLE_AI_IMAGE_MODEL') or '').strip()
-DEFAULT_COACH_MODEL = (os.getenv('SUNG_GOOGLE_AI_COACH_MODEL') or '').strip()
+DEFAULT_IMAGE_MODEL = ''
+DEFAULT_COACH_MODEL = ''
 
 
 def build_profile_prompt(profile=None):
@@ -62,7 +63,7 @@ def _extract_json(text):
 def _build_client():
     if genai is None:
         raise RuntimeError('google-generativeai 패키지가 설치되지 않았습니다.')
-    api_key = (os.getenv('SUNG_GOOGLE_AI_API_KEY') or '').strip()
+    api_key = (current_app.config.get('SUNG_GOOGLE_AI_API_KEY') or '').strip()
     if not api_key:
         raise ValueError('SUNG_GOOGLE_AI_API_KEY가 설정되지 않았습니다.')
     genai_module = cast(Any, genai)
@@ -87,7 +88,7 @@ def _normalize_items(items):
 
 def analyze_food_image(image_bytes, mime_type='image/jpeg', filename='upload.jpg'):
     _build_client()
-    model_name = (os.getenv('SUNG_GOOGLE_AI_IMAGE_MODEL') or DEFAULT_IMAGE_MODEL).strip()
+    model_name = (current_app.config.get('SUNG_GOOGLE_AI_IMAGE_MODEL') or DEFAULT_IMAGE_MODEL).strip()
     if not model_name:
         raise ValueError('SUNG_GOOGLE_AI_IMAGE_MODEL이 설정되지 않았습니다.')
     genai_module = cast(Any, genai)
@@ -111,7 +112,7 @@ def analyze_food_image(image_bytes, mime_type='image/jpeg', filename='upload.jpg
 
 def generate_diet_coach_feedback(payload):
     _build_client()
-    model_name = (os.getenv('SUNG_GOOGLE_AI_COACH_MODEL') or DEFAULT_COACH_MODEL).strip()
+    model_name = (current_app.config.get('SUNG_GOOGLE_AI_COACH_MODEL') or DEFAULT_COACH_MODEL).strip()
     if not model_name:
         raise ValueError('SUNG_GOOGLE_AI_COACH_MODEL이 설정되지 않았습니다.')
     genai_module = cast(Any, genai)
