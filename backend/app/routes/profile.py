@@ -11,7 +11,9 @@ profile_bp = Blueprint('profile', __name__)
 
 
 def _get_user_and_profile():
-    user_id = int(get_jwt_identity())
+    identity = get_jwt_identity()
+    user_id = identity.get('id') if isinstance(identity, dict) else identity
+    user_id = int(user_id)
     user = User.query.get(user_id)
     if not user:
         return None, None

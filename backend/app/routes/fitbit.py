@@ -17,6 +17,15 @@ FITBIT_TOKEN_URL = "https://api.fitbit.com/oauth2/token"
 FITBIT_SLEEP_BY_DATE_URL = "https://api.fitbit.com/1.2/user/-/sleep/date/{date}.json"
 
 
+def _get_current_user_id():
+    identity = get_jwt_identity()
+    if isinstance(identity, dict):
+        identity = identity.get("id")
+    if identity is None:
+        raise ValueError("JWT identity is missing")
+    return int(identity)
+
+
 def build_basic_auth_header(client_id, client_secret):
     raw = f"{client_id}:{client_secret}"
     encoded = base64.b64encode(raw.encode("utf-8")).decode("utf-8")
@@ -130,7 +139,7 @@ def connect_fitbit():
             "message": "Fitbit 환경변수가 설정되지 않았습니다."
         }), 500
 
-    user_id = get_jwt_identity()
+    user_id = _get_current_user_id()
     random_state = secrets.token_urlsafe(24)
 
     params = {
@@ -219,7 +228,7 @@ def fitbit_callback():
 @fitbit_bp.route("/status", methods=["GET"])
 @jwt_required()
 def fitbit_status():
-    user_id = get_jwt_identity()
+    user_id = _get_current_user_id()
     token_row = FitbitToken.query.filter_by(user_id=user_id).first()
 
     return jsonify({
@@ -231,7 +240,7 @@ def fitbit_status():
 @fitbit_bp.route("/sleep/<date>", methods=["GET"])
 @jwt_required()
 def fitbit_sleep_by_date(date):
-    user_id = get_jwt_identity()
+    user_id = _get_current_user_id()
     token_row = get_valid_token_row(user_id)
 
     if not token_row:

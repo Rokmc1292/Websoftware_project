@@ -18,6 +18,15 @@ def _now_kst_naive():
     return datetime.now(KST).replace(tzinfo=None)
 
 
+def _get_current_user_id():
+    identity = get_jwt_identity()
+    if isinstance(identity, dict):
+        identity = identity.get('id')
+    if identity is None:
+        raise ValueError('JWT identity is missing')
+    return int(identity)
+
+
 def _today_kst():
     return datetime.now(KST).date()
 
@@ -76,7 +85,7 @@ def _find_entry_or_404(user_id, entry_id):
 @diet_bp.route('/entries', methods=['GET'])
 @jwt_required()
 def get_entries():
-    user_id = int(get_jwt_identity())
+    user_id = _get_current_user_id()
     user = User.query.get(user_id)
     query = DietEntry.query.filter_by(user_id=user_id)
     if request.args.get('all') != '1':
@@ -113,7 +122,7 @@ def get_entries():
 @diet_bp.route('/goals', methods=['PATCH'])
 @jwt_required()
 def update_goals():
-    user_id = int(get_jwt_identity())
+    user_id = _get_current_user_id()
     data = request.get_json(silent=True) or {}
     user = User.query.get(user_id)
     if not user:
@@ -146,7 +155,7 @@ def update_goals():
 @diet_bp.route('/entries', methods=['POST'])
 @jwt_required()
 def create_entry():
-    user_id = int(get_jwt_identity())
+    user_id = _get_current_user_id()
     data = request.get_json(silent=True) or {}
 
     title = (data.get('title') or '').strip() or _now_kst_naive().strftime('%Y-%m-%d %H시')
@@ -183,7 +192,7 @@ def create_entry():
 @diet_bp.route('/entries/<int:entry_id>', methods=['PUT'])
 @jwt_required()
 def update_entry(entry_id):
-    user_id = int(get_jwt_identity())
+    user_id = _get_current_user_id()
     data = request.get_json(silent=True) or {}
 
     entry, error = _find_entry_or_404(user_id, entry_id)
@@ -211,7 +220,7 @@ def update_entry(entry_id):
 @diet_bp.route('/entries/<int:entry_id>', methods=['DELETE'])
 @jwt_required()
 def delete_entry(entry_id):
-    user_id = int(get_jwt_identity())
+    user_id = _get_current_user_id()
     entry, error = _find_entry_or_404(user_id, entry_id)
     if error:
         return error
@@ -228,7 +237,7 @@ def delete_entry(entry_id):
 @diet_bp.route('/entries/<int:entry_id>/favorite', methods=['PATCH'])
 @jwt_required()
 def toggle_favorite(entry_id):
-    user_id = int(get_jwt_identity())
+    user_id = _get_current_user_id()
     data = request.get_json(silent=True) or {}
 
     entry, error = _find_entry_or_404(user_id, entry_id)

@@ -21,7 +21,9 @@ auth_bp = Blueprint('auth', __name__)
 
 
 def _get_current_user():
-    user_id = int(get_jwt_identity())
+    identity = get_jwt_identity()
+    user_id = identity.get('id') if isinstance(identity, dict) else identity
+    user_id = int(user_id)
     return User.query.get(user_id)
 
 

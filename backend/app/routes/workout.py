@@ -44,6 +44,15 @@ from sqlalchemy import func, distinct
 workout_bp = Blueprint('workout', __name__)
 
 
+def _get_current_user_id():
+    identity = get_jwt_identity()
+    if isinstance(identity, dict):
+        identity = identity.get('id')
+    if identity is None:
+        raise ValueError('JWT identity is missing')
+    return int(identity)
+
+
 # =============================================================================
 # 세션 목록 조회 API
 # GET /api/workout/sessions
@@ -58,7 +67,7 @@ def get_sessions():
 
     # get_jwt_identity() : 로그인 시 발급된 JWT 토큰에서 사용자 ID를 추출
     # create_access_token(identity=str(user.id)) 로 발급했으므로 문자열 반환
-    current_user_id = int(get_jwt_identity())  # 문자열 → 정수로 변환
+    current_user_id = _get_current_user_id()
 
     # DB에서 이 사용자의 모든 세션을 날짜 내림차순(최신순)으로 조회
     # filter_by() : user_id가 일치하는 행만 선택
@@ -103,7 +112,7 @@ def create_session():
     """
 
     # 현재 로그인한 사용자 ID 추출
-    current_user_id = int(get_jwt_identity())
+    current_user_id = _get_current_user_id()
 
     # 요청 Body를 Python 딕셔너리로 파싱
     data = request.get_json(silent=True)  # silent=True : 파싱 실패 시 예외 대신 None 반환
@@ -235,7 +244,7 @@ def get_session(session_id):
     실패 응답(404): { "message": "세션을 찾을 수 없습니다." }
     """
 
-    current_user_id = int(get_jwt_identity())  # 현재 사용자 ID 추출
+    current_user_id = _get_current_user_id()
 
     # DB에서 session_id로 세션 조회
     # .get() : 기본 키로 빠르게 조회 — 없으면 None 반환
@@ -263,7 +272,7 @@ def delete_session(session_id):
     실패 응답(404): { "message": "세션을 찾을 수 없습니다." }
     """
 
-    current_user_id = int(get_jwt_identity())  # 현재 사용자 ID 추출
+    current_user_id = _get_current_user_id()
 
     # 삭제할 세션 조회
     session = WorkoutSession.query.get(session_id)
@@ -300,7 +309,7 @@ def analyze_session(session_id):
     실패 응답(404): { "message": "세션을 찾을 수 없습니다." }
     """
 
-    current_user_id = int(get_jwt_identity())  # 현재 사용자 ID 추출
+    current_user_id = _get_current_user_id()
 
     # 분석할 세션 조회
     session = WorkoutSession.query.get(session_id)
@@ -344,7 +353,7 @@ def get_exercises():
     프론트엔드 자동완성(datalist)에 활용됨
     성공 응답(200): { "exercises": ["벤치프레스", "스쿼트", ...] }
     """
-    current_user_id = int(get_jwt_identity())  # 현재 사용자 ID 추출
+    current_user_id = _get_current_user_id()
 
     # DB에서 이 사용자의 모든 세션에 포함된 운동 이름을 중복 없이 가져옴
     # WorkoutSet.exercise_name : 운동 종목 이름 컬럼
@@ -377,7 +386,7 @@ def get_exercise_best(exercise_name):
     SessionForm에서 "+/−" 버튼의 기준값으로 활용됨
     성공 응답(200): { "best_weight_kg": 100.0, "best_reps": 12 }
     """
-    current_user_id = int(get_jwt_identity())  # 현재 사용자 ID
+    current_user_id = _get_current_user_id()
 
     # func.max() : SQL의 MAX() 집계 함수 — 가장 큰 값을 반환
     # 이 사용자의 해당 운동에서 가장 높은 중량(best_weight)과 횟수(best_reps)를 구함
@@ -418,7 +427,7 @@ def update_session(session_id):
     요청 Body(JSON): 세션 생성 API와 동일한 형식
     성공 응답(200): { "message": "...", "session": {...} }
     """
-    current_user_id = int(get_jwt_identity())  # 현재 사용자 ID
+    current_user_id = _get_current_user_id()
 
     # 수정할 세션 조회
     session = WorkoutSession.query.get(session_id)
@@ -503,7 +512,7 @@ def toggle_favorite(session_id):
     특정 세션의 즐겨찾기 상태를 토글 (즐겨찾기 추가 ↔ 해제)
     성공 응답(200): { "is_favorite": true/false }
     """
-    current_user_id = int(get_jwt_identity())  # 현재 사용자 ID
+    current_user_id = _get_current_user_id()
 
     # 즐겨찾기 토글할 세션 조회
     session = WorkoutSession.query.get(session_id)
@@ -534,7 +543,7 @@ def get_favorites():
     '루틴 불러오기' 기능에서 사용됨
     성공 응답(200): { "sessions": [...] }
     """
-    current_user_id = int(get_jwt_identity())  # 현재 사용자 ID
+    current_user_id = _get_current_user_id()
 
     # is_favorite=True인 세션만 필터링해 최신순으로 반환
     sessions = (

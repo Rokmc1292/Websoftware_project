@@ -42,6 +42,15 @@ from ..models.sleep_record import SleepRecord  # 수면 기록 모델
 stats_bp = Blueprint('stats', __name__)
 
 
+def _get_current_user_id():
+    identity = get_jwt_identity()
+    if isinstance(identity, dict):
+        identity = identity.get('id')
+    if identity is None:
+        raise ValueError('JWT identity is missing')
+    return int(identity)
+
+
 # =============================================================================
 # 월별 기록 존재 여부 조회 API
 # GET /api/stats/monthly?year=2024&month=6
@@ -67,7 +76,7 @@ def get_monthly_stats():
 
     # get_jwt_identity() : JWT 토큰에서 현재 로그인한 사용자 ID를 문자열로 추출
     # int()으로 변환해 정수 user_id로 사용
-    user_id = int(get_jwt_identity())
+    user_id = _get_current_user_id()
 
     # ── 쿼리스트링 파라미터 읽기 ──
     # request.args.get('year') : URL의 ?year=2024 에서 '2024'를 문자열로 읽음
@@ -146,19 +155,15 @@ def get_monthly_stats():
         diet_dates = set()
 
     # ── 수면 기록이 있는 날짜 집합 조회 ──
-    # ─ 주의 ─────────────────────────────────────────────────────────────────
-    # schema.sql 에는 컬럼명이 'sleep_date', SleepRecord 모델은 'record_date'
-    # DB와 모델이 불일치하면 1054 오류 발생 → try-except로 안전하게 처리
-    # 수면 점(dot)만 안 뜨고 운동/식단 점은 정상 표시됨
-    # 근본 해결: MySQL에서 ALTER TABLE sleep_records CHANGE sleep_date record_date DATE NOT NULL;
-    # ─────────────────────────────────────────────────────────────────────────
     try:
-        # SleepRecord 모델에 user_id가 없으므로 user_id 필터 없이 날짜로만 조회
         sleep_dates = set(
             row[0]
             for row in SleepRecord.query
                 .with_entities(SleepRecord.record_date)
-                .filter(SleepRecord.record_date.between(first_day, last_day))
+                .filter(
+                    SleepRecord.user_id == user_id,
+                    SleepRecord.record_date.between(first_day, last_day)
+                )
                 .all()
         )
     except Exception as e:
@@ -207,7 +212,7 @@ def get_daily_stats():
     """
 
     # get_jwt_identity() : JWT 토큰에서 현재 로그인한 사용자 ID 추출
-    user_id = int(get_jwt_identity())
+    user_id = _get_current_user_id()
 
     # ── 쿼리스트링에서 날짜 파라미터 읽기 ──
     date_str = request.args.get('date')  # ?date=2024-06-01 에서 '2024-06-01' 추출
@@ -263,15 +268,14 @@ def get_daily_stats():
         diet_entries = []  # 오류 시 빈 리스트 반환
 
     # ── 해당 날짜의 수면 기록 조회 ──
-    # ─ 주의 ─────────────────────────────────────────────────────────────────
-    # schema.sql 에는 'sleep_date', SleepRecord 모델에는 'record_date' — 불일치 가능
-    # 에러가 나더라도 500 대신 sleep: null 로 안전하게 처리
-    # ─────────────────────────────────────────────────────────────────────────
     try:
         # 수면 기록은 날짜당 하나 (unique=True)이므로 .first() 사용
         sleep_record = (
             SleepRecord.query
-            .filter(SleepRecord.record_date == target_date)
+            .filter(
+                SleepRecord.user_id == user_id,
+                SleepRecord.record_date == target_date
+            )
             .first()  # 없으면 None 반환
         )
     except Exception as e:

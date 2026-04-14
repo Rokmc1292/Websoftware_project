@@ -129,7 +129,7 @@ function Header() {
               letterSpacing: '-0.5px', // 자간 약간 좁게 — 짧은 이름을 더 임팩트 있게
             }}
           >
-            
+            hill
             {/* 서비스 이름 "hill" — 소문자 그대로 사용 (브랜드 스타일) */}
           </span>
         </div>

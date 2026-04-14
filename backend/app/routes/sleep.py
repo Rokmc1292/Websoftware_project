@@ -28,8 +28,10 @@ def _parse_record_date(date_text):
 def _get_current_user_id():
     identity = get_jwt_identity()
     if isinstance(identity, dict):
-        return identity.get("id")
-    return identity
+        identity = identity.get("id")
+    if identity is None:
+        raise ValueError("JWT identity is missing")
+    return int(identity)
 
 
 @sleep_bp.route("/sleep-records", methods=["GET"])
