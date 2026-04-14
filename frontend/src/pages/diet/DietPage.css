@@ -1,17 +1,17 @@
 :root {
-    --c-bg: #f5f6fa;
-    --c-card: #fff;
-    --c-border: #e2e8f0;
-    --c-text: #1e293b;
-    --c-sub: #64748b;
-    --c-muted: #94a3b8;
-    --c-primary: #4f6ef7;
-    --c-primary-light: #eef1fe;
-    --c-success: #22c55e;
-    --c-warning: #f59e0b;
-    --c-danger: #ef4444;
-    --c-ai: #7c3aed;
-    --c-ai-light: #f5f3ff;
+    --c-bg: var(--theme-bg);
+    --c-card: var(--theme-card);
+    --c-border: var(--theme-border);
+    --c-text: var(--theme-text);
+    --c-sub: var(--theme-sub);
+    --c-muted: var(--theme-muted);
+    --c-primary: var(--theme-primary);
+    --c-primary-light: var(--theme-primary-light);
+    --c-success: var(--theme-success);
+    --c-warning: var(--theme-warning);
+    --c-danger: var(--theme-danger);
+    --c-ai: var(--theme-ai);
+    --c-ai-light: var(--theme-ai-light);
     --r-xs: 4px;
     --r-sm: 6px;
     --r-md: 8px;
@@ -107,6 +107,53 @@
 .aiAnalysisSection,
 .totalCaloriesSection {
     margin-bottom: var(--g-lg);
+}
+
+.dietListToolbar {
+    min-height: 44px;
+    margin-bottom: var(--g-lg);
+    padding: 6px 12px;
+    border: 1px solid var(--c-border);
+    border-radius: var(--r-lg);
+    background: var(--c-card);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--g-sm);
+}
+
+.dietListToolbarTitle {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.dietDateFilterForm {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.dietDateFilterInput {
+    height: 30px;
+    border: 1px solid var(--c-border);
+    border-radius: var(--r-sm);
+    padding: 4px 8px;
+    font-size: 12px;
+    color: var(--c-text);
+    background: var(--c-card);
+}
+
+.dietDateFilterButton {
+    height: 30px;
+    border: 1px solid var(--c-primary);
+    border-radius: var(--r-sm);
+    padding: 0 10px;
+    background: var(--c-primary);
+    color: var(--c-card);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
 }
 
 .foodList,
@@ -534,6 +581,33 @@
     margin-bottom: var(--g-xs);
 }
 
+.aiCoachRefreshButton {
+    margin-left: auto;
+    border: 1px solid var(--c-ai);
+    border-radius: var(--r-sm);
+    padding: 4px 8px;
+    background: var(--c-card);
+    color: var(--c-ai);
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.aiCoachRefreshButton:disabled {
+    opacity: .6;
+    cursor: default;
+}
+
+.aiCoachDirtyBadge {
+    border: 1px solid var(--c-ai);
+    border-radius: 999px;
+    padding: 2px 6px;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--c-ai);
+    background: var(--c-card);
+}
+
 .aiCoachTitle {
     margin: 0;
     font-size: 12px;
@@ -546,6 +620,14 @@
     font-size: 12px;
     line-height: 1.6;
     color: var(--c-ai);
+    white-space: pre-line;
+}
+
+.aiCoachMeta {
+    margin: 0 0 6px;
+    font-size: 11px;
+    color: var(--c-ai);
+    opacity: .8;
 }
 
 .dietUploadModalOverlay {
@@ -702,6 +784,55 @@
     color: var(--c-sub);
 }
 
+
+.dietUploadProgressWrap {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 4px;
+}
+
+.dietUploadProgressLabel,
+.dietUploadErrorHint {
+    font-size: 11px;
+    color: var(--c-sub);
+}
+
+.dietUploadProgressBar {
+    width: 100%;
+    height: 10px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--c-border);
+}
+
+.dietUploadProgressFill {
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--c-primary), #7c3aed);
+    transition: width .2s ease;
+}
+
+.dietUploadErrorBox {
+    width: 100%;
+    border: 1px solid rgb(239 68 68 / 25%);
+    background: rgb(254 242 242);
+    border-radius: var(--r-md);
+    padding: 10px 12px;
+}
+
+.dietUploadErrorText {
+    margin: 0 0 4px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--c-danger);
+}
+
+.dietUploadErrorHint {
+    margin: 0;
+    line-height: 1.5;
+}
 .dietUploadSelectButton,
 .dietUploadCancelButton,
 .dietUploadSubmitButton {
@@ -811,6 +942,15 @@
 
     .foodCardActionGroup {
         gap: 4px;
+    }
+
+    .dietListToolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .dietDateFilterForm {
+        justify-content: space-between;
     }
 }
 

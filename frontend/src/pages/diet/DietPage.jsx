@@ -1,12 +1,15 @@
 import {useEffect, useMemo, useRef, useState} from 'react';
 import {
+    analyzeDietImage,
     createDietEntry,
     deleteDietEntry,
+    getDietCoachFeedback,
     getDietEntries,
     toggleDietFavorite,
     updateDietEntry,
     updateDietGoals
 } from '../../api/dietApi.js';
+import {getCurrentUser} from '../../api/authApi.js';
 import './DietPage.css';
 
 const DEFAULT_DAILY_GOALS = {calories: 2000, protein: 100, carbs: 300, fat: 60};
@@ -31,23 +34,36 @@ const toNumber = (value) => {
     return Number.isFinite(parsed) ? parsed : 0;
 };
 
-const makeDefaultDietTitle = () => {
-    const now = new Date();
-    const yyyy = now.getFullYear();
-    const mm = String(now.getMonth() + 1).padStart(2, '0');
-    const dd = String(now.getDate()).padStart(2, '0');
-    const hh = String(now.getHours()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd} ${hh}시`;
+const makeDefaultDietTitle = (date = new Date()) => {
+    const parts = new Intl.DateTimeFormat('ko-KR', {
+        timeZone: 'Asia/Seoul',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        hour12: false,
+    }).formatToParts(date).reduce((acc, part) => ({...acc, [part.type]: part.value}), {});
+    return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}시`;
 };
 
-const makeTimeLabel = () => {
-    const now = new Date();
-    const yyyy = now.getFullYear();
-    const mm = String(now.getMonth() + 1).padStart(2, '0');
-    const dd = String(now.getDate()).padStart(2, '0');
-    const hh = String(now.getHours()).padStart(2, '0');
-    const min = String(now.getMinutes()).padStart(2, '0');
-    return `${yyyy}.${mm}.${dd}. ${hh}:${min}`;
+const makeKstDateInputValue = (date = new Date()) => new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+}).format(date);
+
+const makeKstDateTimeLabel = (date = new Date()) => {
+    const parts = new Intl.DateTimeFormat('ko-KR', {
+        timeZone: 'Asia/Seoul',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+    }).formatToParts(date).reduce((acc, part) => ({...acc, [part.type]: part.value}), {});
+    return `${parts.year}.${parts.month}.${parts.day}. ${parts.hour}:${parts.minute} KST`;
 };
 
 const calculateTotals = (items) => ({
@@ -66,30 +82,12 @@ const normalizeItems = (items) => items.map((item) => ({
     fat: toNumber(item.fat),
 }));
 
-const buildDiet = ({id, title, items, time}) => {
-    const normalizedItems = normalizeItems(items);
-    return {id, title, time, items: normalizedItems, ...calculateTotals(normalizedItems)};
-};
-
 const INITIAL_AI_PREVIEW = {
     id: 1,
     image: '🍽️',
     imagePreview: '',
     items: [],
 };
-
-const INITIAL_DIETS = [
-    buildDiet({
-        id: 2,
-        title: '아침',
-        time: makeTimeLabel(),
-        items: [
-            {id: 201, name: '흰미밥 200g', calories: 300, protein: 6, carbs: 66, fat: 1},
-            {id: 202, name: '계란 2개', calories: 156, protein: 12, carbs: 2, fat: 10},
-            {id: 203, name: '닭가슴살 150g', calories: 220, protein: 38, carbs: 0, fat: 4},
-        ],
-    }),
-];
 
 const createManualForm = (targetDietId = '') => ({
     title: makeDefaultDietTitle(),
@@ -265,7 +263,7 @@ function NutritionGoalCard({totalCalories, totalProtein, totalCarbs, totalFat, p
 }
 
 function DietPage() {
-    const [diets, setDiets] = useState(INITIAL_DIETS);
+    const [diets, setDiets] = useState([]);
     const [dailyGoals, setDailyGoals] = useState(DEFAULT_DAILY_GOALS);
     const [isSavingGoals, setIsSavingGoals] = useState(false);
     const [foodNameSuggestions, setFoodNameSuggestions] = useState([]);
@@ -273,6 +271,25 @@ function DietPage() {
     const [pendingFavoriteIds, setPendingFavoriteIds] = useState([]);
     const [expandedDietIds, setExpandedDietIds] = useState([]);
     const [aiPreview, setAiPreview] = useState(INITIAL_AI_PREVIEW);
+    const [isAnalyzingImage, setIsAnalyzingImage] = useState(false);
+    const [aiAnalysisProgress, setAiAnalysisProgress] = useState(0);
+    const [aiAnalysisPhase, setAiAnalysisPhase] = useState('idle');
+    const [aiAnalysisError, setAiAnalysisError] = useState('');
+    const [isAiCoachLoading, setIsAiCoachLoading] = useState(false);
+    const [aiCoachMessage, setAiCoachMessage] = useState('식단을 추가하면 AI 코치 피드백이 표시됩니다.');
+    const [lastCoachAnalyzedAt, setLastCoachAnalyzedAt] = useState('');
+    const [coachAnalyzedDate, setCoachAnalyzedDate] = useState('');
+    const [lastCoachAnalyzedSignature, setLastCoachAnalyzedSignature] = useState('');
+    const [userProfileNote, setUserProfileNote] = useState('');
+    const [userProfile, setUserProfile] = useState({
+        profile_note: '',
+        height_cm: '',
+        weight_kg: '',
+        skeletal_muscle_kg: '',
+        body_fat_kg: '',
+    });
+    const [selectedDate, setSelectedDate] = useState(() => makeKstDateInputValue());
+    const [dateDraft, setDateDraft] = useState(() => makeKstDateInputValue());
 
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
     const [selectedImageFile, setSelectedImageFile] = useState(null);
@@ -283,6 +300,8 @@ function DietPage() {
 
     const [isFavoritesModalOpen, setIsFavoritesModalOpen] = useState(false);
     const [favoritesTitle, setFavoritesTitle] = useState(makeDefaultDietTitle());
+    const [favoritesSourceEntries, setFavoritesSourceEntries] = useState([]);
+    const [favoriteBaseIds, setFavoriteBaseIds] = useState([]);
 
     const [isAiEditModalOpen, setIsAiEditModalOpen] = useState(false);
     const [aiEditForm, setAiEditForm] = useState({itemId: null, items: []});
@@ -295,17 +314,25 @@ function DietPage() {
 
     const [isDietEditModalOpen, setIsDietEditModalOpen] = useState(false);
     const [dietEditForm, setDietEditForm] = useState({dietId: null, title: '', itemId: null, items: []});
+    const [hasLoadedCurrentUser, setHasLoadedCurrentUser] = useState(false);
 
     const fileInputRef = useRef(null);
     const uploadTriggerRef = useRef(null);
     const nextItemIdRef = useRef(1000);
+    const entryLoadSeqRef = useRef(0);
 
     const applyEntries = (entries) => {
         setDiets(entries);
         setFavoriteIds(entries.filter((entry) => entry.is_favorite).map((entry) => entry.id));
     };
 
+    const isEntryOnSelectedDate = (entry) => (entry?.recorded_at || '').slice(0, 10) === selectedDate;
+
     const upsertEntry = (entry) => {
+        if (!isEntryOnSelectedDate(entry)) {
+            removeEntry(entry.id);
+            return;
+        }
         setDiets((prev) => {
             const exists = prev.some((item) => item.id === entry.id);
             if (!exists) return [entry, ...prev];
@@ -337,10 +364,29 @@ function DietPage() {
         fat: dailyGoals.fat > 0 ? Math.round((nutritionTotals.fat / dailyGoals.fat) * 100) : 0,
     }), [nutritionTotals, dailyGoals]);
 
-    const favoriteDiets = useMemo(() => diets.filter((diet) => pendingFavoriteIds.includes(diet.id)), [diets, pendingFavoriteIds]);
+    const favoriteDiets = useMemo(
+        () => favoritesSourceEntries.filter((diet) => pendingFavoriteIds.includes(diet.id)),
+        [favoritesSourceEntries, pendingFavoriteIds]
+    );
+
+    const coachAnalysisSignature = useMemo(() => JSON.stringify({
+        goals: dailyGoals,
+        entries: diets.map((diet) => ({
+            id: diet.id,
+            title: diet.title,
+            calories: diet.calories,
+            protein: diet.protein,
+            carbs: diet.carbs,
+            fat: diet.fat,
+            items: diet.items,
+        })),
+    }), [selectedDate, dailyGoals, diets]);
+
+    const needsCoachRefresh = diets.length > 0 && (coachAnalyzedDate !== selectedDate || coachAnalysisSignature !== lastCoachAnalyzedSignature);
 
     const selectedAiItem = useMemo(() => aiEditForm.items.find((item) => item.id === aiEditForm.itemId), [aiEditForm]);
     const selectedDietItem = useMemo(() => dietEditForm.items.find((item) => item.id === dietEditForm.itemId), [dietEditForm]);
+    const canUseExistingDiet = diets.length > 0;
 
     const getNextItemId = () => {
         const next = nextItemIdRef.current;
@@ -351,6 +397,7 @@ function DietPage() {
     const appendDiet = async (title, items) => {
         const payload = {
             title: title || makeDefaultDietTitle(),
+            recorded_date: selectedDate,
             items: normalizeItems(items).map((item, index) => ({
                 name: item.name,
                 calories: item.calories,
@@ -368,6 +415,9 @@ function DietPage() {
         setIsUploadModalOpen(false);
         setSelectedImageFile(null);
         setSelectedImagePreview('');
+        setAiAnalysisProgress(0);
+        setAiAnalysisPhase('idle');
+        setAiAnalysisError('');
         if (fileInputRef.current) fileInputRef.current.value = '';
         if (uploadTriggerRef.current) uploadTriggerRef.current.focus();
     };
@@ -376,9 +426,9 @@ function DietPage() {
         setManualForm(createManualForm());
     };
     const closeFavoritesModal = async () => {
-        const currentFavoriteSet = new Set(favoriteIds);
+        const currentFavoriteSet = new Set(favoriteBaseIds);
         const nextFavoriteSet = new Set(pendingFavoriteIds);
-        const changedIds = diets
+        const changedIds = favoritesSourceEntries
             .map((diet) => diet.id)
             .filter((id) => currentFavoriteSet.has(id) !== nextFavoriteSet.has(id));
 
@@ -395,6 +445,8 @@ function DietPage() {
         setIsFavoritesModalOpen(false);
         setFavoritesTitle(makeDefaultDietTitle());
         setPendingFavoriteIds([]);
+        setFavoriteBaseIds([]);
+        setFavoritesSourceEntries([]);
     };
     const closeAiEditModal = () => setIsAiEditModalOpen(false);
     const closeAiSaveModal = () => {
@@ -428,9 +480,49 @@ function DietPage() {
     }, [isUploadModalOpen, isManualModalOpen, isFavoritesModalOpen, isAiEditModalOpen, isAiSaveModalOpen, isGoalModalOpen, isDietEditModalOpen]);
 
     useEffect(() => {
-        const loadEntries = async () => {
+        let isActive = true;
+
+        const loadCurrentUser = async () => {
             try {
-                const data = await getDietEntries();
+                const data = await getCurrentUser();
+                if (!isActive) return;
+                const profile = data?.user?.profile || {};
+                setUserProfile({
+                    profile_note: profile.profile_note || data?.user?.profile_note || '',
+                    height_cm: profile.height_cm ?? data?.user?.height_cm ?? '',
+                    weight_kg: profile.weight_kg ?? data?.user?.weight_kg ?? '',
+                    skeletal_muscle_kg: profile.skeletal_muscle_kg ?? data?.user?.skeletal_muscle_kg ?? '',
+                    body_fat_kg: profile.body_fat_kg ?? data?.user?.body_fat_kg ?? '',
+                });
+                setUserProfileNote(profile.profile_note || data?.user?.profile_note || '');
+            } catch (error) {
+                if (error?.response?.status !== 401) {
+                    console.error('사용자 정보 조회 실패:', error);
+                }
+            }
+            finally {
+                if (isActive) {
+                    setHasLoadedCurrentUser(true);
+                }
+            }
+        };
+
+        loadCurrentUser();
+        return () => {
+            isActive = false;
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!hasLoadedCurrentUser) return;
+
+        let isActive = true;
+
+        const loadEntries = async () => {
+            const seq = ++entryLoadSeqRef.current;
+            try {
+                const data = await getDietEntries({date: selectedDate});
+                if (!isActive || seq !== entryLoadSeqRef.current) return;
                 applyEntries(data.entries || []);
                 if (data.goals) {
                     setDailyGoals({
@@ -442,15 +534,59 @@ function DietPage() {
                 }
                 setFoodNameSuggestions(Array.isArray(data.food_name_suggestions) ? data.food_name_suggestions : []);
             } catch (error) {
-                console.error('식단 목록 조회 실패:', error);
+                if (error?.response?.status !== 401) {
+                    console.error('식단 목록 조회 실패:', error);
+                }
             }
         };
         loadEntries();
-    }, []);
+        return () => {
+            isActive = false;
+        };
+    }, [selectedDate, hasLoadedCurrentUser]);
 
-    const requestAIAnalysis = (payload) => {
-        // TODO: AI 분석 API 연동 예정
-        console.log('AI 분석 요청 예정:', payload);
+    const handleRequestAiCoach = async () => {
+        if (isAiCoachLoading) return;
+        if (diets.length === 0) {
+            setAiCoachMessage('분석할 식단이 없습니다. 먼저 식단을 추가해 주세요.');
+            return;
+        }
+        setIsAiCoachLoading(true);
+        try {
+            const response = await getDietCoachFeedback({
+                selected_date: selectedDate,
+                profile_note: userProfileNote,
+                height_cm: userProfile.height_cm,
+                weight_kg: userProfile.weight_kg,
+                skeletal_muscle_kg: userProfile.skeletal_muscle_kg,
+                body_fat_kg: userProfile.body_fat_kg,
+                goals: dailyGoals,
+                totals: nutritionTotals,
+                entries: diets.map((diet) => ({
+                    id: diet.id,
+                    title: diet.title,
+                    calories: diet.calories,
+                    protein: diet.protein,
+                    carbs: diet.carbs,
+                    fat: diet.fat,
+                    items: diet.items,
+                })),
+            });
+            setAiCoachMessage((response?.feedback || '').trim() || 'AI 코치 응답이 비어 있습니다.');
+            setLastCoachAnalyzedAt(response?.analyzed_at_label || makeKstDateTimeLabel());
+            setCoachAnalyzedDate(response?.analyzed_date || selectedDate);
+            setLastCoachAnalyzedSignature(coachAnalysisSignature);
+        } catch (error) {
+            setAiCoachMessage(error?.response?.data?.message || 'AI 코치 분석에 실패했습니다.');
+        } finally {
+            setIsAiCoachLoading(false);
+        }
+    };
+
+    const handleDateFilterSubmit = (event) => {
+        event.preventDefault();
+        if (!dateDraft) return;
+        setSelectedDate(dateDraft);
     };
 
     const openGoalModal = () => {
@@ -492,14 +628,29 @@ function DietPage() {
         }
         if (actionId === 'favorites') {
             setFavoritesTitle(makeDefaultDietTitle());
-            setPendingFavoriteIds(favoriteIds);
-            setIsFavoritesModalOpen(true);
+            getDietEntries({all: 1}).then((data) => {
+                const allEntries = data.entries || [];
+                const allFavoriteIds = allEntries.filter((entry) => entry.is_favorite).map((entry) => entry.id);
+                setFavoritesSourceEntries(allEntries);
+                setFavoriteBaseIds(allFavoriteIds);
+                setPendingFavoriteIds(allFavoriteIds);
+                setIsFavoritesModalOpen(true);
+            }).catch((error) => {
+                console.error('전체 즐겨찾기 목록 조회 실패:', error);
+                setFavoritesSourceEntries(diets);
+                setFavoriteBaseIds(favoriteIds);
+                setPendingFavoriteIds(favoriteIds);
+                setIsFavoritesModalOpen(true);
+            });
         }
     };
 
     const handleFileChange = (event) => {
         const file = event.target.files?.[0] || null;
         setSelectedImageFile(file);
+        setAiAnalysisError('');
+        setAiAnalysisProgress(0);
+        setAiAnalysisPhase('idle');
         if (!file) {
             setSelectedImagePreview('');
             return;
@@ -509,11 +660,54 @@ function DietPage() {
         reader.readAsDataURL(file);
     };
 
-    const handleStartAnalysis = () => {
+    const handleStartAnalysis = async () => {
         if (!selectedImageFile || !selectedImagePreview) return;
-        setAiPreview((prev) => ({...prev, imagePreview: selectedImagePreview}));
-        requestAIAnalysis({type: 'image_upload', fileName: selectedImageFile.name});
-        closeUploadModal();
+        setIsAnalyzingImage(true);
+        setAiAnalysisError('');
+        setAiAnalysisProgress(0);
+        setAiAnalysisPhase('uploading');
+        try {
+            const response = await analyzeDietImage(selectedImageFile, {
+                onUploadProgress: (event) => {
+                    if (!event.total) return;
+                    const isComplete = event.loaded >= event.total;
+                    const percent = isComplete ? 100 : Math.min(99, Math.round((event.loaded / event.total) * 100));
+                    setAiAnalysisProgress(percent);
+                    setAiAnalysisPhase(isComplete ? 'analyzing' : 'uploading');
+                },
+            });
+            setAiAnalysisProgress(100);
+            setAiAnalysisPhase('done');
+            const analyzedItems = normalizeItems((response?.items || []).map((item) => ({
+                id: getNextItemId(),
+                name: item.name,
+                calories: item.calories,
+                protein: item.protein,
+                carbs: item.carbs,
+                fat: item.fat,
+            })));
+            setAiPreview((prev) => ({
+                ...prev,
+                imagePreview: selectedImagePreview,
+                items: analyzedItems,
+            }));
+            closeUploadModal();
+        } catch (error) {
+            const isTimeout = error?.code === 'ECONNABORTED' || String(error?.message || '').toLowerCase().includes('timeout');
+            const isCanceled = error?.code === 'ERR_CANCELED' || String(error?.message || '').toLowerCase().includes('canceled');
+            if (!isCanceled) {
+                console.error('AI 이미지 분석 실패:', error);
+            }
+            setAiAnalysisPhase('error');
+            setAiAnalysisError(
+                error?.response?.data?.message ||
+                (isTimeout ? 'AI 이미지 분석이 오래 걸리고 있습니다. 잠시 후 다시 시도해주세요.' : null) ||
+                (isCanceled ? 'AI 이미지 분석 요청이 중단되었습니다. 다시 시도해주세요.' : null) ||
+                'AI 이미지 분석에 실패했습니다.'
+            );
+        } finally {
+            setIsAnalyzingImage(false);
+        }
     };
 
     const handleSaveAiDiet = () => {
@@ -523,7 +717,7 @@ function DietPage() {
 
     const handleConfirmAiSave = async () => {
         try {
-            if (aiSaveForm.addMode === 'existing' && aiSaveForm.targetDietId) {
+            if (aiSaveForm.addMode === 'existing' && aiSaveForm.targetDietId && canUseExistingDiet) {
                 const targetDietId = Number(aiSaveForm.targetDietId);
                 const target = diets.find((diet) => diet.id === targetDietId);
                 if (target) {
@@ -538,7 +732,6 @@ function DietPage() {
             } else {
                 await appendDiet(aiSaveForm.title.trim() || makeDefaultDietTitle(), aiPreview.items);
             }
-            requestAIAnalysis({type: 'save_ai_result', source: 'ai_preview'});
             setAiPreview({...INITIAL_AI_PREVIEW, items: []});
             closeAiSaveModal();
         } catch (error) {
@@ -615,7 +808,7 @@ function DietPage() {
             fat: toNumber(manualForm.fat),
         };
         try {
-            if (manualForm.addMode === 'existing' && manualForm.targetDietId) {
+            if (manualForm.addMode === 'existing' && manualForm.targetDietId && canUseExistingDiet) {
                 const targetDietId = Number(manualForm.targetDietId);
                 const target = diets.find((diet) => diet.id === targetDietId);
                 if (target) {
@@ -710,6 +903,15 @@ function DietPage() {
                     <div className="aiAnalysisSection">
                         <div className="foodList"><AIAnalysisFoodCard preview={aiPreview} onSave={handleSaveAiDiet}
                                                                       onOpenEdit={openAiEditModal}/></div>
+                        {aiAnalysisError ? <p className="dietUploadModalDescription">{aiAnalysisError}</p> : null}
+                    </div>
+                    <div className="dietListToolbar">
+                        <h3 className="dietListToolbarTitle">식단 목록</h3>
+                        <form className="dietDateFilterForm" onSubmit={handleDateFilterSubmit}>
+                            <input type="date" className="dietDateFilterInput" value={dateDraft}
+                                   onChange={(e) => setDateDraft(e.target.value)}/>
+                            <button type="submit" className="dietDateFilterButton">조회</button>
+                        </form>
                     </div>
                     <div className="foodList">
                         {diets.map((diet) => (
@@ -726,8 +928,14 @@ function DietPage() {
                                        percentages={percentages} goals={dailyGoals} onOpenGoalModal={openGoalModal}/>
                     <div className="aiCoachCard">
                         <div className="aiCoachHeader"><span className="aiCoachIcon">✨</span><h4
-                            className="aiCoachTitle">AI 코치 분석</h4></div>
-                        <p className="aiCoachContent">연결 예정</p></div>
+                            className="aiCoachTitle">AI 코치 분석</h4>
+                            {needsCoachRefresh ? <span className="aiCoachDirtyBadge">재분석 필요</span> : null}
+                            <button type="button" className="aiCoachRefreshButton" onClick={handleRequestAiCoach}
+                                    disabled={isAiCoachLoading}>{isAiCoachLoading ? '분석 중' : '분석 시작'}</button>
+                        </div>
+                        {lastCoachAnalyzedAt ? <p className="aiCoachMeta">기준 날짜: {coachAnalyzedDate || '-'} · 마지막
+                            분석: {lastCoachAnalyzedAt}</p> : null}
+                        <p className="aiCoachContent">{isAiCoachLoading ? '분석 중...' : aiCoachMessage}</p></div>
                 </aside>
             </div>
 
@@ -738,7 +946,12 @@ function DietPage() {
                     actions={<div className="dietUploadActions">
                         <button type="button" className="dietUploadCancelButton" onClick={closeUploadModal}>취소</button>
                         <button type="button" className="dietUploadSubmitButton" onClick={handleStartAnalysis}
-                                disabled={!selectedImageFile || !selectedImagePreview}>분석 시작
+                                disabled={!selectedImageFile || !selectedImagePreview || isAnalyzingImage}>
+                            {isAnalyzingImage
+                                ? (aiAnalysisPhase === 'analyzing'
+                                    ? '서버 분석 중...'
+                                    : `업로드 중 ${aiAnalysisProgress}%`)
+                                : (aiAnalysisError ? '다시 시도' : '분석 시작')}
                         </button>
                     </div>}
                 >
@@ -756,6 +969,27 @@ function DietPage() {
                             </div> : null}
                         {selectedImageFile ? <p className="dietUploadFileName"
                                                 aria-live="polite">선택됨: {selectedImageFile.name}</p> : null}
+                        {isAnalyzingImage || aiAnalysisProgress > 0 ? (
+                            <div className="dietUploadProgressWrap" aria-live="polite">
+                                <div className="dietUploadProgressLabel">
+                                    {aiAnalysisPhase === 'analyzing'
+                                        ? '이미지 업로드 완료, AI가 식단을 분석 중입니다.'
+                                        : `업로드 진행률 ${aiAnalysisProgress}%`}
+                                </div>
+                                <div className="dietUploadProgressBar">
+                                    <div
+                                        className="dietUploadProgressFill"
+                                        style={{width: `${Math.max(4, aiAnalysisProgress)}%`}}
+                                    />
+                                </div>
+                            </div>
+                        ) : null}
+                        {aiAnalysisError ? (
+                            <div className="dietUploadErrorBox" role="alert">
+                                <p className="dietUploadErrorText">{aiAnalysisError}</p>
+                                <p className="dietUploadErrorHint">파일은 유지됩니다. 아래 버튼으로 바로 다시 시도할 수 있습니다.</p>
+                            </div>
+                        ) : null}
                     </div>
                 </ModalShell>
             ) : null}
@@ -820,13 +1054,14 @@ function DietPage() {
                                               addMode: e.target.value
                                           }))}/> 추가</label>
                             <label><input type="radio" name="add-mode" value="existing"
+                                          disabled={!canUseExistingDiet}
                                           checked={manualForm.addMode === 'existing'}
                                           onChange={(e) => setManualForm((prev) => ({
                                               ...prev,
                                               addMode: e.target.value
                                           }))}/> 기존 식단에 추가</label>
                         </div>
-                        {manualForm.addMode === 'existing' ?
+                        {manualForm.addMode === 'existing' && canUseExistingDiet ?
                             <label className="dietFormLabel">추가할 식단 선택<select className="dietFormInput"
                                                                               value={manualForm.targetDietId}
                                                                               onChange={(e) => setManualForm((prev) => ({
@@ -943,6 +1178,7 @@ function DietPage() {
                             addMode: e.target.value
                         }))}/> 새 식단으로 저장</label>
                         <label><input type="radio" name="ai-save-mode" value="existing"
+                                      disabled={!canUseExistingDiet}
                                       checked={aiSaveForm.addMode === 'existing'}
                                       onChange={(e) => setAiSaveForm((prev) => ({
                                           ...prev,
@@ -955,7 +1191,7 @@ function DietPage() {
                                                                          ...prev,
                                                                          title: e.target.value
                                                                      }))}/></label> : null}
-                    {aiSaveForm.addMode === 'existing' ?
+                    {aiSaveForm.addMode === 'existing' && canUseExistingDiet ?
                         <label className="dietFormLabel">추가할 식단 선택<select className="dietFormInput"
                                                                           value={aiSaveForm.targetDietId}
                                                                           onChange={(e) => setAiSaveForm((prev) => ({

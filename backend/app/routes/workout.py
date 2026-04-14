@@ -2,11 +2,15 @@
 # Flask 블루프린트를 사용해 /api/workout/* 경로를 모듈화
 #
 # 엔드포인트 목록:
-#   GET  /api/workout/sessions          — 내 모든 세션 목록 조회
-#   POST /api/workout/sessions          — 새 세션 + 세트 생성
-#   GET  /api/workout/sessions/<id>     — 특정 세션 상세 조회
-#   DELETE /api/workout/sessions/<id>   — 특정 세션 삭제
-#   POST /api/workout/sessions/<id>/analyze — 특정 세션 AI 분석 요청
+#   GET    /api/workout/sessions              — 내 모든 세션 목록 조회 (검색/필터/페이지네이션)
+#   POST   /api/workout/sessions              — 새 세션 + 세트 생성
+#   GET    /api/workout/sessions/<id>         — 특정 세션 상세 조회
+#   PUT    /api/workout/sessions/<id>         — 특정 세션 수정
+#   DELETE /api/workout/sessions/<id>         — 특정 세션 삭제
+#   POST   /api/workout/sessions/<id>/analyze — 특정 세션 AI 분석 요청
+#   POST   /api/workout/sessions/<id>/favorite — 즐겨찾기 토글
+#   GET    /api/workout/exercises             — 내가 했던 운동 이름 목록 (자동완성용)
+#   GET    /api/workout/exercises/<name>/best — 특정 운동의 개인 최고 기록 조회
 
 from flask import Blueprint, request, jsonify  # Flask 핵심 도구
 # Blueprint : URL 그룹화 도구
@@ -29,12 +33,24 @@ from ..services.ai_coach import analyze_workout
 # date : 날짜 전용 클래스 (datetime.date) — session_date 저장에 사용
 from datetime import date
 
+# sqlalchemy 함수 임포트 — 집계(func.max)와 개별 컬럼 조회(distinct)에 사용
+from sqlalchemy import func, distinct
+
 # ─────────────────────────────────────────────
 # 블루프린트 생성
 # ─────────────────────────────────────────────
 # Blueprint('workout', __name__) : 'workout'이라는 이름의 블루프린트 생성
 # app/__init__.py에서 url_prefix='/api/workout'으로 등록됨
 workout_bp = Blueprint('workout', __name__)
+
+
+def _get_current_user_id():
+    identity = get_jwt_identity()
+    if isinstance(identity, dict):
+        identity = identity.get('id')
+    if identity is None:
+        raise ValueError('JWT identity is missing')
+    return int(identity)
 
 
 # =============================================================================
@@ -51,7 +67,7 @@ def get_sessions():
 
     # get_jwt_identity() : 로그인 시 발급된 JWT 토큰에서 사용자 ID를 추출
     # create_access_token(identity=str(user.id)) 로 발급했으므로 문자열 반환
-    current_user_id = int(get_jwt_identity())  # 문자열 → 정수로 변환
+    current_user_id = _get_current_user_id()
 
     # DB에서 이 사용자의 모든 세션을 날짜 내림차순(최신순)으로 조회
     # filter_by() : user_id가 일치하는 행만 선택
@@ -96,7 +112,7 @@ def create_session():
     """
 
     # 현재 로그인한 사용자 ID 추출
-    current_user_id = int(get_jwt_identity())
+    current_user_id = _get_current_user_id()
 
     # 요청 Body를 Python 딕셔너리로 파싱
     data = request.get_json(silent=True)  # silent=True : 파싱 실패 시 예외 대신 None 반환
@@ -159,6 +175,9 @@ def create_session():
             # 이 종목의 세트 목록
             sets = exercise.get('sets', [])
 
+            # muscle_group : 이 종목의 운동 부위 (종목 단위로 지정, 세트마다 동일)
+            muscle_group = exercise.get('muscle_group')
+
             for set_index, set_data in enumerate(sets):
                 # enumerate() : 인덱스와 값을 같이 반환
                 # set_index=0이면 1세트, 1이면 2세트 ...
@@ -184,6 +203,9 @@ def create_session():
 
                     # rest_sec : 휴식 시간(초)
                     rest_sec=set_data.get('rest_sec'),
+
+                    # muscle_group : 운동 부위 (종목 단위 — 각 세트에 동일하게 적용)
+                    muscle_group=muscle_group,
                 )
 
                 # DB 세션에 새 세트 추가
@@ -222,7 +244,7 @@ def get_session(session_id):
     실패 응답(404): { "message": "세션을 찾을 수 없습니다." }
     """
 
-    current_user_id = int(get_jwt_identity())  # 현재 사용자 ID 추출
+    current_user_id = _get_current_user_id()
 
     # DB에서 session_id로 세션 조회
     # .get() : 기본 키로 빠르게 조회 — 없으면 None 반환
@@ -250,7 +272,7 @@ def delete_session(session_id):
     실패 응답(404): { "message": "세션을 찾을 수 없습니다." }
     """
 
-    current_user_id = int(get_jwt_identity())  # 현재 사용자 ID 추출
+    current_user_id = _get_current_user_id()
 
     # 삭제할 세션 조회
     session = WorkoutSession.query.get(session_id)
@@ -287,7 +309,7 @@ def analyze_session(session_id):
     실패 응답(404): { "message": "세션을 찾을 수 없습니다." }
     """
 
-    current_user_id = int(get_jwt_identity())  # 현재 사용자 ID 추출
+    current_user_id = _get_current_user_id()
 
     # 분석할 세션 조회
     session = WorkoutSession.query.get(session_id)
@@ -317,3 +339,218 @@ def analyze_session(session_id):
     except Exception as error:
         db.session.rollback()  # 오류 시 롤백
         return jsonify({'message': f'AI 분석 중 오류가 발생했습니다: {str(error)}'}), 500
+
+
+# =============================================================================
+# 내가 했던 운동 이름 목록 조회 API (자동완성용)
+# GET /api/workout/exercises
+# =============================================================================
+@workout_bp.route('/exercises', methods=['GET'])  # GET 요청 — 데이터 조회
+@jwt_required()  # JWT 토큰 필수
+def get_exercises():
+    """
+    현재 로그인한 사용자가 한 번이라도 기록한 모든 운동 종목 이름을 반환
+    프론트엔드 자동완성(datalist)에 활용됨
+    성공 응답(200): { "exercises": ["벤치프레스", "스쿼트", ...] }
+    """
+    current_user_id = _get_current_user_id()
+
+    # DB에서 이 사용자의 모든 세션에 포함된 운동 이름을 중복 없이 가져옴
+    # WorkoutSet.exercise_name : 운동 종목 이름 컬럼
+    # distinct() : 중복 제거 — 같은 종목을 여러 번 했어도 이름은 한 번만 반환
+    # join(WorkoutSession) : workout_sets 테이블과 workout_sessions 테이블을 JOIN해 user_id 필터 적용
+    rows = (
+        db.session.query(distinct(WorkoutSet.exercise_name))  # 중복 없는 종목 이름 선택
+        .join(WorkoutSession, WorkoutSet.session_id == WorkoutSession.id)  # 세션 테이블과 조인
+        .filter(WorkoutSession.user_id == current_user_id)  # 내 세션만 필터링
+        .order_by(WorkoutSet.exercise_name)  # 가나다순 정렬 (자동완성 목록용)
+        .all()  # 모든 결과 가져오기
+    )
+
+    # rows : [('벤치프레스',), ('스쿼트',), ...] 형태의 튜플 리스트
+    # r[0] : 각 튜플의 첫 번째 요소(운동 이름 문자열)만 추출해 리스트로 변환
+    exercise_names = [r[0] for r in rows]
+
+    return jsonify({'exercises': exercise_names}), 200  # 운동 이름 목록 반환
+
+
+# =============================================================================
+# 특정 운동의 개인 최고 기록 조회 API
+# GET /api/workout/exercises/<exercise_name>/best
+# =============================================================================
+@workout_bp.route('/exercises/<string:exercise_name>/best', methods=['GET'])
+@jwt_required()
+def get_exercise_best(exercise_name):
+    """
+    특정 운동 종목에서 이 사용자의 최고 중량과 최고 횟수를 반환
+    SessionForm에서 "+/−" 버튼의 기준값으로 활용됨
+    성공 응답(200): { "best_weight_kg": 100.0, "best_reps": 12 }
+    """
+    current_user_id = _get_current_user_id()
+
+    # func.max() : SQL의 MAX() 집계 함수 — 가장 큰 값을 반환
+    # 이 사용자의 해당 운동에서 가장 높은 중량(best_weight)과 횟수(best_reps)를 구함
+    result = (
+        db.session.query(
+            func.max(WorkoutSet.weight_kg),  # 최고 중량
+            func.max(WorkoutSet.reps),       # 최고 횟수
+        )
+        .join(WorkoutSession, WorkoutSet.session_id == WorkoutSession.id)
+        .filter(
+            WorkoutSession.user_id == current_user_id,      # 내 세션만
+            WorkoutSet.exercise_name == exercise_name        # 해당 운동만
+        )
+        .first()  # 집계 결과는 항상 1행이므로 .first()로 가져옴
+    )
+
+    # result : (max_weight, max_reps) 튜플 또는 (None, None) — 기록이 없을 때
+    best_weight = float(result[0]) if result[0] is not None else None  # Decimal → float 변환
+    best_reps   = result[1] if result[1] is not None else None          # 정수 또는 None
+
+    return jsonify({
+        'exercise_name': exercise_name,  # 조회한 운동 이름
+        'best_weight_kg': best_weight,   # 최고 중량 (kg)
+        'best_reps': best_reps,          # 최고 횟수 (회)
+    }), 200
+
+
+# =============================================================================
+# 세션 수정 API
+# PUT /api/workout/sessions/<session_id>
+# =============================================================================
+@workout_bp.route('/sessions/<int:session_id>', methods=['PUT'])  # PUT 요청 — 데이터 수정
+@jwt_required()
+def update_session(session_id):
+    """
+    특정 운동 세션의 기본 정보와 세트를 수정
+    기존 세트를 모두 삭제하고 새 세트로 교체하는 방식(replace all)
+    요청 Body(JSON): 세션 생성 API와 동일한 형식
+    성공 응답(200): { "message": "...", "session": {...} }
+    """
+    current_user_id = _get_current_user_id()
+
+    # 수정할 세션 조회
+    session = WorkoutSession.query.get(session_id)
+
+    # 세션이 없거나 다른 사람의 세션 — 수정 불가
+    if not session or session.user_id != current_user_id:
+        return jsonify({'message': '운동 세션을 찾을 수 없습니다.'}), 404
+
+    # 요청 Body 파싱
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({'message': '요청 데이터가 올바르지 않습니다.'}), 400
+
+    # session_date 파싱 (변경된 경우)
+    session_date_str = data.get('session_date', '')
+    if not session_date_str:
+        return jsonify({'message': '운동 날짜(session_date)는 필수입니다.'}), 400
+
+    try:
+        session_date = date.fromisoformat(session_date_str)  # "YYYY-MM-DD" → date 객체
+    except ValueError:
+        return jsonify({'message': '날짜 형식이 올바르지 않습니다. YYYY-MM-DD 형식으로 입력해주세요.'}), 400
+
+    try:
+        # ── 세션 기본 정보 업데이트 ──
+        session.session_date = session_date           # 날짜 변경
+        session.title        = data.get('title')      # 제목 변경 (없으면 None)
+        session.memo         = data.get('memo')       # 메모 변경
+        session.duration_min = data.get('duration_min')  # 운동 시간 변경
+
+        # ── 기존 세트 전체 삭제 후 새 세트로 교체 ──
+        # 세션에 속한 모든 세트를 삭제 — relationship의 cascade가 아닌 명시적 삭제
+        WorkoutSet.query.filter_by(session_id=session_id).delete()
+
+        # 새 세트 삽입 (세션 생성 API와 동일한 로직)
+        exercises = data.get('exercises', [])  # 요청 Body의 종목 목록
+
+        for exercise in exercises:
+            exercise_name = exercise.get('name', '').strip()  # 종목 이름 추출
+            if not exercise_name:
+                continue  # 이름 없는 종목 건너뜀
+
+            sets = exercise.get('sets', [])  # 이 종목의 세트 목록
+            muscle_group = exercise.get('muscle_group')  # 근육 부위 (선택)
+
+            for set_index, set_data in enumerate(sets):
+                new_set = WorkoutSet(
+                    session_id=session_id,                    # 이 세션에 속함
+                    exercise_name=exercise_name,              # 종목 이름
+                    set_number=set_index + 1,                 # 세트 번호 (1부터 시작)
+                    weight_kg=set_data.get('weight_kg'),      # 중량
+                    reps=set_data.get('reps'),                # 횟수
+                    duration_sec=set_data.get('duration_sec'), # 지속 시간(초)
+                    rest_sec=set_data.get('rest_sec'),         # 휴식 시간(초)
+                    muscle_group=muscle_group,                # 근육 부위
+                )
+                db.session.add(new_set)  # 새 세트를 DB 세션에 추가
+
+        db.session.commit()  # 변경사항 최종 저장
+
+        # 수정된 세션 반환 (sets를 다시 로드하기 위해 DB에서 재조회)
+        db.session.refresh(session)  # refresh() : DB에서 최신 데이터로 갱신
+
+        return jsonify({
+            'message': '운동 세션이 수정되었습니다.',
+            'session': session.to_dict(),  # 수정된 세션 정보 반환
+        }), 200
+
+    except Exception as error:
+        db.session.rollback()  # 오류 시 롤백
+        return jsonify({'message': f'서버 오류가 발생했습니다: {str(error)}'}), 500
+
+
+# =============================================================================
+# 즐겨찾기(루틴 저장) 토글 API
+# POST /api/workout/sessions/<session_id>/favorite
+# =============================================================================
+@workout_bp.route('/sessions/<int:session_id>/favorite', methods=['POST'])
+@jwt_required()
+def toggle_favorite(session_id):
+    """
+    특정 세션의 즐겨찾기 상태를 토글 (즐겨찾기 추가 ↔ 해제)
+    성공 응답(200): { "is_favorite": true/false }
+    """
+    current_user_id = _get_current_user_id()
+
+    # 즐겨찾기 토글할 세션 조회
+    session = WorkoutSession.query.get(session_id)
+
+    if not session or session.user_id != current_user_id:
+        return jsonify({'message': '운동 세션을 찾을 수 없습니다.'}), 404
+
+    try:
+        # is_favorite : 현재 즐겨찾기 상태를 반전 (True → False, False → True)
+        session.is_favorite = not bool(session.is_favorite)  # bool() : None이면 False로 처리
+        db.session.commit()  # 변경사항 저장
+        return jsonify({'is_favorite': session.is_favorite}), 200  # 새 상태 반환
+
+    except Exception as error:
+        db.session.rollback()
+        return jsonify({'message': f'서버 오류가 발생했습니다: {str(error)}'}), 500
+
+
+# =============================================================================
+# 즐겨찾기 세션 목록 조회 API
+# GET /api/workout/favorites
+# =============================================================================
+@workout_bp.route('/favorites', methods=['GET'])
+@jwt_required()
+def get_favorites():
+    """
+    현재 사용자의 즐겨찾기로 저장된 세션 목록을 반환
+    '루틴 불러오기' 기능에서 사용됨
+    성공 응답(200): { "sessions": [...] }
+    """
+    current_user_id = _get_current_user_id()
+
+    # is_favorite=True인 세션만 필터링해 최신순으로 반환
+    sessions = (
+        WorkoutSession.query
+        .filter_by(user_id=current_user_id, is_favorite=True)
+        .order_by(WorkoutSession.session_date.desc())
+        .all()
+    )
+
+    return jsonify({'sessions': [s.to_dict() for s in sessions]}), 200

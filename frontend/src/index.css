@@ -40,6 +40,51 @@ html {
      예) 1rem = 16px, 0.875rem = 14px, 1.5rem = 24px */
 }
 
+:root {
+  --app-bg: #f5f6fa;
+  --app-text: #1e293b;
+
+  --theme-bg: #f5f6fa;
+  --theme-card: #ffffff;
+  --theme-border: #e2e8f0;
+  --theme-text: #1e293b;
+  --theme-sub: #64748b;
+  --theme-muted: #94a3b8;
+  --theme-primary: #4f6ef7;
+  --theme-primary-light: #eef1fe;
+  --theme-success: #22c55e;
+  --theme-success-light: #f0fdf4;
+  --theme-danger: #ef4444;
+  --theme-danger-light: #fef2f2;
+  --theme-warning: #f59e0b;
+  --theme-warning-light: #fffbeb;
+  --theme-ai: #7c3aed;
+  --theme-ai-light: #f5f3ff;
+}
+
+[data-theme='dark'] {
+  /* 쿨 다크 톤 */
+  --app-bg: #0f172a;
+  --app-text: #e2e8f0;
+
+  --theme-bg: #0f172a;
+  --theme-card: #1e293b;
+  --theme-border: #334155;
+  --theme-text: #e2e8f0;
+  --theme-sub: #b6c2d6;
+  --theme-muted: #8ea0bb;
+  --theme-primary: #7c93ff;
+  --theme-primary-light: #1f2a44;
+  --theme-success: #4fd39d;
+  --theme-success-light: #132a24;
+  --theme-danger: #ff8a99;
+  --theme-danger-light: #2d1b26;
+  --theme-warning: #f2c06b;
+  --theme-warning-light: #2d2618;
+  --theme-ai: #c7b4ff;
+  --theme-ai-light: #24263b;
+}
+
 
 /* =============================================================================
    3. body — 페이지 전체 기본 스타일
@@ -54,11 +99,11 @@ body {
      Arial            : 영문 폴백 폰트
      sans-serif       : 위 폰트가 모두 없을 때 브라우저가 선택하는 고딕 계열 폰트 */
 
-  background-color: #F5F6FA;
+  background-color: var(--app-bg);
   /* 앱 전체 배경색 — colors.js의 colors.bg 값과 동일하게 맞춤
      AppLayout의 인라인 스타일도 같은 값을 사용하므로 깜빡임 없이 자연스럽게 전환됨 */
 
-  color: #1E293B;
+  color: var(--app-text);
   /* 기본 글자색 — colors.js의 colors.text 값과 동일
      모든 하위 요소는 별도 지정이 없으면 이 색을 상속받음 */
 

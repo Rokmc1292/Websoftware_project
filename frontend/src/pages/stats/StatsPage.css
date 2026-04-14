@@ -1,0 +1,664 @@
+/* StatsPage.css — 통계/캘린더 페이지 전용 스타일 */
+/* 이 파일은 StatsPage.jsx에서 import해서 사용합니다 */
+
+:root {
+  --stats-card: var(--theme-card);
+  --stats-border: var(--theme-border);
+  --stats-text: var(--theme-text);
+  --stats-sub: var(--theme-sub);
+  --stats-muted: var(--theme-muted);
+  --stats-bg-soft: var(--theme-bg);
+  --stats-primary: var(--theme-primary);
+  --stats-primary-soft: var(--theme-primary-light);
+  --stats-primary-soft-2: color-mix(in srgb, var(--theme-primary) 25%, var(--theme-card));
+  --stats-primary-dark: color-mix(in srgb, var(--theme-primary) 78%, #000);
+  --stats-danger: var(--theme-danger);
+  --stats-success: var(--theme-success);
+  --stats-ai: var(--theme-ai);
+}
+
+/* ─────────────────────────────────────────────
+   캘린더 컨테이너
+   ───────────────────────────────────────────── */
+
+/* 캘린더 전체를 감싸는 카드 박스 */
+.stats-calendar-card {
+  background: var(--stats-card);
+  border: 1px solid var(--stats-border);
+  border-radius: 16px;           /* 모서리 둥글게 */
+  padding: 24px;                 /* 내부 여백 */
+  margin-bottom: 24px;           /* 아래 여백 */
+}
+
+/* ─────────────────────────────────────────────
+   캘린더 상단 헤더 (이전/다음 달 이동 + 연월 표시)
+   ───────────────────────────────────────────── */
+
+/* 헤더 전체 행 — 좌우 버튼과 가운데 연월 텍스트 배치 */
+.calendar-header {
+  display: flex;                 /* 가로 방향으로 나열 */
+  align-items: center;           /* 수직 가운데 정렬 */
+  justify-content: space-between; /* 좌-중-우로 균등 배치 */
+  margin-bottom: 20px;           /* 헤더와 요일 행 사이 여백 */
+}
+
+/* 연월 텍스트 (예: 2024년 6월) */
+.calendar-title {
+  font-size: 18px;               /* 글씨 크기 */
+  font-weight: 800;              /* 굵은 글씨 */
+  color: var(--stats-text);
+  letter-spacing: -0.3px;        /* 자간 살짝 좁히기 */
+}
+
+/* 이전/다음 달 이동 버튼 */
+.calendar-nav-btn {
+  background: var(--stats-bg-soft);
+  border: 1px solid var(--stats-border);
+  border-radius: 8px;            /* 모서리 둥글게 */
+  width: 36px;                   /* 버튼 너비 */
+  height: 36px;                  /* 버튼 높이 */
+  display: flex;                 /* flex로 아이콘 가운데 정렬 */
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;               /* 마우스 커서를 손 모양으로 */
+  font-size: 16px;               /* 화살표 아이콘 크기 */
+  color: var(--stats-sub);
+  transition: background 0.15s, color 0.15s; /* 호버 시 색 변화 부드럽게 */
+  user-select: none;             /* 클릭 시 텍스트 선택 방지 */
+}
+
+/* 이전/다음 버튼 호버 효과 */
+.calendar-nav-btn:hover {
+  background: var(--stats-primary-soft);
+  color: var(--stats-primary);
+  border-color: var(--stats-primary);
+}
+
+/* ─────────────────────────────────────────────
+   요일 행 (일 월 화 수 목 금 토)
+   ───────────────────────────────────────────── */
+
+/* 요일 이름 7개를 가로로 나열하는 그리드 */
+.calendar-weekdays {
+  display: grid;                 /* CSS 그리드 레이아웃 */
+  grid-template-columns: repeat(7, 1fr); /* 7등분 — 각 요일이 동일한 너비 */
+  margin-bottom: 8px;            /* 요일 행과 날짜 그리드 사이 여백 */
+}
+
+/* 개별 요일 이름 셀 */
+.calendar-weekday {
+  text-align: center;            /* 가운데 정렬 */
+  font-size: 12px;               /* 작은 글씨 */
+  font-weight: 600;              /* 약간 굵게 */
+  color: var(--stats-muted);
+  padding: 4px 0;                /* 위아래 여백 */
+}
+
+/* 일요일 요일 글씨 — 빨간색 */
+.calendar-weekday.sunday {
+  color: var(--stats-danger);
+}
+
+/* 토요일 요일 글씨 — 파란색 */
+.calendar-weekday.saturday {
+  color: var(--stats-primary);
+}
+
+/* ─────────────────────────────────────────────
+   날짜 그리드
+   ───────────────────────────────────────────── */
+
+/* 날짜 셀 전체를 담는 7열 그리드 */
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr); /* 7열 균등 분할 */
+  gap: 4px;                      /* 셀 사이 간격 */
+}
+
+/* 개별 날짜 셀 */
+.calendar-day {
+  position: relative;            /* 내부 점(dot) 배치를 위한 기준점 */
+  aspect-ratio: 1;               /* 정사각형 비율 유지 */
+  display: flex;
+  flex-direction: column;        /* 날짜 숫자와 점을 세로로 나열 */
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;           /* 모서리 둥글게 */
+  cursor: pointer;               /* 클릭 가능한 손 커서 */
+  transition: background 0.15s;  /* 호버 시 배경색 부드럽게 변환 */
+  gap: 3px;                      /* 숫자와 점 사이 간격 */
+  min-height: 48px;              /* 최소 높이 */
+  padding: 4px 2px;              /* 내부 여백 */
+}
+
+/* 날짜 셀 기본 호버 효과 */
+.calendar-day:hover {
+  background: var(--stats-bg-soft);
+}
+
+/* 이번 달이 아닌 날짜 (이전 달/다음 달의 빈 셀) */
+.calendar-day.other-month {
+  opacity: 0;                    /* 완전히 투명하게 — 빈 공간으로 처리 */
+  pointer-events: none;          /* 클릭 이벤트 차단 */
+  cursor: default;
+}
+
+/* 오늘 날짜 셀 */
+.calendar-day.today {
+  background: var(--stats-primary-soft);
+}
+
+/* 오늘 날짜 호버 */
+.calendar-day.today:hover {
+  background: var(--stats-primary-soft-2);
+}
+
+/* 선택된 날짜 셀 (클릭했을 때) */
+.calendar-day.selected {
+  background: var(--stats-primary);
+}
+
+/* 선택된 날짜 호버 */
+.calendar-day.selected:hover {
+  background: var(--stats-primary-dark);
+}
+
+/* 날짜 숫자 텍스트 */
+.calendar-day-number {
+  font-size: 13px;               /* 글씨 크기 */
+  font-weight: 600;              /* 굵게 */
+  color: var(--stats-text);
+  line-height: 1;                /* 행간 최소화 */
+}
+
+/* 일요일 날짜 숫자 색상 */
+.calendar-day.sunday .calendar-day-number {
+  color: var(--stats-danger);
+}
+
+/* 토요일 날짜 숫자 색상 */
+.calendar-day.saturday .calendar-day-number {
+  color: var(--stats-primary);
+}
+
+/* 선택된 날짜의 숫자는 흰색 */
+.calendar-day.selected .calendar-day-number {
+  color: #ffffff;
+}
+
+/* 오늘 날짜 숫자 — 파란색으로 강조 */
+.calendar-day.today:not(.selected) .calendar-day-number {
+  color: var(--stats-primary);
+}
+
+/* ─────────────────────────────────────────────
+   기록 존재 여부 표시 점(dot)
+   ───────────────────────────────────────────── */
+
+/* 점들을 가로로 나열하는 컨테이너 */
+.calendar-dots {
+  display: flex;
+  gap: 3px;                      /* 점 사이 간격 */
+  align-items: center;
+  justify-content: center;
+  min-height: 8px;               /* 점이 없는 날도 같은 높이 유지 */
+}
+
+/* 개별 점 */
+.calendar-dot {
+  width: 5px;                    /* 점 너비 */
+  height: 5px;                   /* 점 높이 */
+  border-radius: 50%;            /* 원형으로 */
+}
+
+/* 운동 기록 점 — 파란색 */
+.calendar-dot.workout {
+  background: var(--stats-primary);
+}
+
+/* 식단 기록 점 — 초록색 */
+.calendar-dot.diet {
+  background: var(--stats-success);
+}
+
+/* 수면 기록 점 — 보라색 */
+.calendar-dot.sleep {
+  background: var(--stats-ai);
+}
+
+/* 선택된 날짜의 점들은 흰색 */
+.calendar-day.selected .calendar-dot {
+  background: rgba(255, 255, 255, 0.8);
+}
+
+/* ─────────────────────────────────────────────
+   범례 (Legend) — 점 색상 안내
+   ───────────────────────────────────────────── */
+
+/* 범례 전체 컨테이너 — 오른쪽 정렬 */
+.calendar-legend {
+  display: flex;
+  gap: 16px;                     /* 범례 항목 사이 간격 */
+  justify-content: flex-end;     /* 오른쪽 정렬 */
+  margin-top: 16px;              /* 캘린더 그리드와의 위 여백 */
+  flex-wrap: wrap;               /* 화면이 좁을 때 줄바꿈 */
+}
+
+/* 범례 항목 하나 (점 + 텍스트) */
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;                      /* 점과 텍스트 사이 간격 */
+  font-size: 12px;               /* 작은 글씨 */
+  color: var(--stats-sub);
+}
+
+/* 범례 점 */
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+/* 범례 점 색상 — calendar-dot와 동일한 색상 체계 */
+.legend-dot.workout { background: var(--stats-primary); }
+.legend-dot.diet    { background: var(--stats-success); }
+.legend-dot.sleep   { background: var(--stats-ai); }
+
+/* ─────────────────────────────────────────────
+   날짜 상세 모달 (DayDetailModal)
+   ───────────────────────────────────────────── */
+
+/* 모달 배경 오버레이 — 화면 전체를 어둡게 덮음 */
+.modal-overlay {
+  position: fixed;               /* 화면 기준으로 고정 (스크롤해도 위치 불변) */
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5); /* 반투명 검정 배경 */
+  display: flex;
+  align-items: center;           /* 수직 가운데 */
+  justify-content: center;       /* 수평 가운데 */
+  z-index: 1000;                 /* 다른 요소 위에 표시 */
+  padding: 16px;                 /* 화면 가장자리에서의 여백 */
+  animation: fadeIn 0.2s ease;   /* 등장 애니메이션 */
+}
+
+/* 오버레이 등장 애니메이션 */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* 모달 내용 박스 */
+.modal-box {
+  background: var(--stats-card);
+  border-radius: 20px;           /* 둥근 모서리 */
+  width: 100%;
+  max-width: 560px;              /* 최대 너비 */
+  max-height: 85vh;              /* 화면 높이의 85%까지 */
+  overflow-y: auto;              /* 내용이 넘치면 스크롤 */
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2); /* 그림자 */
+  animation: slideUp 0.25s ease; /* 아래에서 위로 등장 애니메이션 */
+}
+
+/* 모달 등장 애니메이션 */
+@keyframes slideUp {
+  from { transform: translateY(30px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+/* 모달 상단 헤더 (날짜 + 닫기 버튼) */
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px 16px;       /* 위 20px, 좌우 24px, 아래 16px */
+  border-bottom: 1px solid var(--stats-border);
+  position: sticky;              /* 스크롤해도 헤더는 고정 */
+  top: 0;                        /* 모달 최상단에 고정 */
+  background: var(--stats-card);
+  border-radius: 20px 20px 0 0;  /* 위쪽 모서리만 둥글게 */
+  z-index: 10;                   /* 내용 위에 표시 */
+}
+
+/* 모달 날짜 제목 */
+.modal-date-title {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--stats-text);
+}
+
+/* 모달 닫기 버튼 */
+.modal-close-btn {
+  background: var(--stats-bg-soft);
+  border: none;
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 18px;
+  color: var(--stats-sub);
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;               /* 버튼 크기가 줄어들지 않게 */
+}
+
+.modal-close-btn:hover {
+  background: var(--stats-danger);
+  color: #ffffff;                /* 흰색 X */
+}
+
+/* 모달 내용 영역 */
+.modal-body {
+  padding: 20px 24px 24px;       /* 내부 여백 */
+}
+
+/* ─────────────────────────────────────────────
+   모달 내 각 섹션 (운동 / 식단 / 수면)
+   ───────────────────────────────────────────── */
+
+/* 섹션 컨테이너 */
+.modal-section {
+  margin-bottom: 20px;           /* 섹션 간 여백 */
+}
+
+/* 섹션 마지막 항목의 아래 여백 제거 */
+.modal-section:last-child {
+  margin-bottom: 0;
+}
+
+/* 섹션 제목 행 (아이콘 + 텍스트) */
+.section-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;                      /* 아이콘과 텍스트 사이 간격 */
+  margin-bottom: 10px;
+}
+
+/* 섹션 아이콘 배지 */
+.section-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;            /* 살짝 둥근 사각형 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;               /* 이모지 크기 */
+  flex-shrink: 0;
+}
+
+/* 운동 섹션 아이콘 배경 — 파란색 계열 */
+.section-icon.workout-icon {
+  background: var(--stats-primary-soft);
+}
+
+/* 식단 섹션 아이콘 배경 — 초록 계열 */
+.section-icon.diet-icon {
+  background: color-mix(in srgb, var(--stats-success) 14%, var(--stats-card));
+}
+
+/* 수면 섹션 아이콘 배경 — 보라 계열 */
+.section-icon.sleep-icon {
+  background: color-mix(in srgb, var(--stats-ai) 14%, var(--stats-card));
+}
+
+/* 섹션 제목 텍스트 */
+.section-title-text {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--stats-text);
+}
+
+/* ─────────────────────────────────────────────
+   운동 세션 카드
+   ───────────────────────────────────────────── */
+
+/* 운동 세션 하나를 감싸는 카드 */
+.workout-session-card {
+  background: color-mix(in srgb, var(--stats-primary) 10%, var(--stats-card));
+  border: 1px solid var(--stats-border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 8px;            /* 카드 간 간격 */
+}
+
+/* 마지막 카드 아래 여백 제거 */
+.workout-session-card:last-child {
+  margin-bottom: 0;
+}
+
+/* 세션 제목 */
+.workout-session-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--stats-text);
+  margin-bottom: 4px;
+}
+
+/* 세션 부가 정보 (날짜, 소요 시간 등) */
+.workout-session-meta {
+  font-size: 12px;
+  color: var(--stats-sub);
+  margin-bottom: 8px;
+}
+
+/* 운동 세트 목록 컨테이너 */
+.workout-sets-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;                      /* 세트 행 사이 간격 */
+}
+
+/* 개별 세트 행 */
+.workout-set-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--stats-sub);
+}
+
+/* 세트 번호 배지 */
+.set-badge {
+  background: var(--stats-primary);
+  color: #ffffff;
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 10px;
+  font-weight: 700;
+  min-width: 24px;               /* 최소 너비로 정렬 맞춤 */
+  text-align: center;
+}
+
+/* ─────────────────────────────────────────────
+   식단 기록 카드
+   ───────────────────────────────────────────── */
+
+/* 식단 기록 하나를 감싸는 카드 */
+.diet-entry-card {
+  background: color-mix(in srgb, var(--stats-success) 12%, var(--stats-card));
+  border: 1px solid color-mix(in srgb, var(--stats-success) 32%, var(--stats-border));
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+}
+
+.diet-entry-card:last-child {
+  margin-bottom: 0;
+}
+
+/* 식단 카드 헤더 (제목 + 총 칼로리) */
+.diet-entry-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+/* 식단 제목 */
+.diet-entry-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--stats-text);
+}
+
+/* 총 칼로리 표시 */
+.diet-entry-calories {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--stats-success);
+}
+
+/* 영양소 요약 행 (단백질/탄수화물/지방) */
+.diet-macros {
+  font-size: 11px;
+  color: var(--stats-sub);
+  margin-bottom: 8px;
+}
+
+/* 식단 아이템 목록 */
+.diet-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+/* 하루 전체 식단 합계 요약 박스 */
+.diet-total-summary {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: color-mix(in srgb, var(--stats-success) 10%, var(--stats-card));
+  border: 1px solid color-mix(in srgb, var(--stats-success) 24%, var(--stats-border));
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--stats-success);
+  font-weight: 600;
+}
+
+/* 개별 식단 아이템 행 */
+.diet-item-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--stats-sub);
+}
+
+/* 음식 이름 */
+.diet-item-name {
+  color: var(--stats-text);
+}
+
+/* 음식 칼로리 */
+.diet-item-cal {
+  color: var(--stats-sub);
+}
+
+/* ─────────────────────────────────────────────
+   수면 기록 카드
+   ───────────────────────────────────────────── */
+
+/* 수면 기록 카드 */
+.sleep-record-card {
+  background: color-mix(in srgb, var(--stats-ai) 12%, var(--stats-card));
+  border: 1px solid color-mix(in srgb, var(--stats-ai) 28%, var(--stats-border));
+  border-radius: 12px;
+  padding: 14px;
+}
+
+/* 수면 주요 지표 그리드 (수면 시간, 만족도 등) */
+.sleep-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr; /* 2열 */
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+/* 수면 지표 개별 항목 */
+.sleep-stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* 지표 레이블 (작은 글씨 설명) */
+.sleep-stat-label {
+  font-size: 11px;
+  color: var(--stats-ai);
+  font-weight: 600;
+}
+
+/* 지표 값 (숫자 등) */
+.sleep-stat-value {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--stats-text);
+}
+
+/* 수면 메모 */
+.sleep-memo {
+  font-size: 12px;
+  color: var(--stats-sub);
+  background: rgba(124, 58, 237, 0.05); /* 아주 연한 보라 배경 */
+  border-radius: 8px;
+  padding: 8px 10px;
+  line-height: 1.5;
+  margin-top: 8px;
+}
+
+/* ─────────────────────────────────────────────
+   기록 없음 상태 표시
+   ───────────────────────────────────────────── */
+
+/* 기록이 없을 때 표시하는 안내 박스 */
+.no-record-box {
+  background: color-mix(in srgb, var(--stats-card) 86%, var(--stats-bg-soft));
+  border: 1px dashed var(--stats-border);
+  border-radius: 10px;
+  padding: 12px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--stats-muted);
+}
+
+/* ─────────────────────────────────────────────
+   로딩 스피너 (모달 내 데이터 로딩 중)
+   ───────────────────────────────────────────── */
+
+/* 로딩 텍스트 컨테이너 */
+.modal-loading {
+  padding: 40px 0;
+  text-align: center;
+  color: var(--stats-muted);
+  font-size: 14px;
+}
+
+/* 로딩 스피너 원 */
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--stats-border);
+  border-top-color: var(--stats-primary);
+  border-radius: 50%;            /* 원형 */
+  animation: spin 0.8s linear infinite; /* 무한 회전 애니메이션 */
+  margin: 0 auto 12px;           /* 가운데 정렬 + 아래 여백 */
+}
+
+/* 스피너 회전 애니메이션 */
+@keyframes spin {
+  to { transform: rotate(360deg); } /* 360도 회전 */
+}
+
+/* ─────────────────────────────────────────────
+   범례 영역 구분선 위 공간
+   ───────────────────────────────────────────── */
+
+/* 캘린더 하단 구분선 */
+.calendar-divider {
+  border: none;
+  border-top: 1px solid var(--stats-border);
+  margin: 16px 0 12px;
+}

@@ -1,5 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  getSleepCoachFeedback,
+  getSleepRecordByDate,
+  getSleepRecords,
+  saveSleepRecord,
+} from "../../api/sleepApi.js";
+import {
+  connectFitbit,
+  getFitbitSleepByDate,
+  getFitbitStatus,
+} from "../../api/wearableApi.js";
 import { colors } from "../../styles/colors.js";
+import "./SleepPage.css";
 
 const defaultWakeGoals = [
   "물마시기",
@@ -153,12 +165,30 @@ function getKoreanDayLabel(date) {
   return ["일", "월", "화", "수", "목", "금", "토"][date.getDay()];
 }
 
+function normalizeSleepRecord(record) {
+  return {
+    ...record,
+    date: record.date ?? "",
+    sleepHours: Number(record.sleepHours || 0),
+    satisfaction: Number(record.satisfaction || 0),
+    bedHour: Number(record.bedHour || 0),
+    bedMinute: Number(record.bedMinute || 0),
+    wakeHour: Number(record.wakeHour || 0),
+    wakeMinute: Number(record.wakeMinute || 0),
+    sleepQuality: Number(record.sleepQuality || 0),
+    freshness: Number(record.freshness || 0),
+    growth: Number(record.growth || 0),
+    missionRate: Number(record.missionRate || 0),
+    goals: Array.isArray(record.goals) ? record.goals : [],
+  };
+}
+
 function buildWeeklySleepData(records, baseDateString) {
   const baseDate = parseLocalDate(baseDateString);
   const result = [];
 
   const startOfWeek = new Date(baseDate);
-  const day = startOfWeek.getDay(); // 일요일 시작
+  const day = startOfWeek.getDay();
   startOfWeek.setDate(startOfWeek.getDate() - day);
 
   for (let i = 0; i < 7; i += 1) {
@@ -317,17 +347,11 @@ function StarRating({ value, onChange, disabled = false }) {
   };
 
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 6,
-        opacity: disabled ? 0.6 : 1,
-      }}
-    >
+    <div className={`sleep-star-rating ${disabled ? "is-disabled" : ""}`}>
       {[0, 1, 2, 3, 4].map((index) => (
         <div
           key={index}
+          className={`sleep-star ${disabled ? "disabled" : "clickable"}`}
           onMouseMove={
             disabled
               ? undefined
@@ -339,54 +363,18 @@ function StarRating({ value, onChange, disabled = false }) {
               ? undefined
               : (e) => onChange(getValueFromPointer(index, e))
           }
-          style={{
-            position: "relative",
-            width: 30,
-            height: 30,
-            cursor: disabled ? "default" : "pointer",
-            flexShrink: 0,
-          }}
         >
+          <span className="sleep-star-base">★</span>
           <span
-            style={{
-              color: "#d1d5db",
-              fontSize: 30,
-              lineHeight: 1,
-              userSelect: "none",
-            }}
-          >
-            ★
-          </span>
-          <span
-            style={{
-              color: "#f5b301",
-              fontSize: 30,
-              lineHeight: 1,
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: getFill(index),
-              overflow: "hidden",
-              whiteSpace: "nowrap",
-              userSelect: "none",
-            }}
+            className="sleep-star-fill"
+            style={{ width: getFill(index) }}
           >
             ★
           </span>
         </div>
       ))}
 
-      <span
-        style={{
-          marginLeft: 8,
-          fontSize: 14,
-          fontWeight: 700,
-          color: colors.text,
-          minWidth: 36,
-        }}
-      >
-        {value === 0 ? "-" : value}
-      </span>
+      <span className="sleep-star-value">{value === 0 ? "-" : value}</span>
     </div>
   );
 }
@@ -420,69 +408,27 @@ function TimeSelect({
   return (
     <div
       ref={wrapperRef}
-      style={{
-        position: "relative",
-        width: "100%",
-        opacity: disabled ? 0.6 : 1,
-      }}
+      className={`sleep-time-select ${disabled ? "is-disabled" : ""}`}
     >
       <button
         type="button"
         disabled={disabled}
         onClick={() => setOpen((prev) => !prev)}
-        style={{
-          width: "100%",
-          height: 42,
-          border: `1px solid ${open ? colors.aiTag : colors.border}`,
-          borderRadius: 8,
-          padding: "0 12px",
-          background: colors.background || "#fff",
-          color: colors.text,
-          fontSize: 14,
-          fontWeight: 600,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          cursor: disabled ? "default" : "pointer",
-          boxSizing: "border-box",
-          transition: "all 0.2s ease",
-          boxShadow: open ? `0 0 0 3px ${colors.aiTagLight}` : "none",
-        }}
+        className={`sleep-time-button ${open ? "is-open" : "is-closed"} ${
+          disabled ? "disabled" : "clickable"
+        }`}
       >
         <span>
           {String(value).padStart(2, "0")}
           {unit}
         </span>
-        <span
-          style={{
-            fontSize: 12,
-            color: colors.sub,
-            transform: open ? "rotate(180deg)" : "rotate(0deg)",
-            transition: "transform 0.2s ease",
-          }}
-        >
+        <span className={`sleep-time-arrow ${open ? "is-open" : "is-closed"}`}>
           ▼
         </span>
       </button>
 
       {open && !disabled && (
-        <div
-          style={{
-            position: "absolute",
-            top: 46,
-            left: 0,
-            right: 0,
-            maxHeight: 168,
-            overflowY: "auto",
-            border: `1px solid ${colors.border}`,
-            borderRadius: 10,
-            background: colors.background || "#fff",
-            boxShadow: "0 10px 24px rgba(0,0,0,0.08)",
-            zIndex: 100,
-            padding: 4,
-            boxSizing: "border-box",
-          }}
-        >
+        <div className="sleep-time-dropdown">
           {options.map((option) => {
             const isSelected = option === value;
             const isHovered = hoveredValue === option;
@@ -490,29 +436,14 @@ function TimeSelect({
             return (
               <div
                 key={option}
+                className={`sleep-time-option ${
+                  isSelected ? "selected" : isHovered ? "hovered" : "default"
+                }`}
                 onMouseEnter={() => setHoveredValue(option)}
                 onMouseLeave={() => setHoveredValue(null)}
                 onClick={() => {
                   onChange(option);
                   setOpen(false);
-                }}
-                style={{
-                  height: 34,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  borderRadius: 8,
-                  cursor: "pointer",
-                  background: isSelected
-                    ? colors.aiTag
-                    : isHovered
-                      ? colors.aiTagLight
-                      : "transparent",
-                  color: isSelected ? "#fff" : colors.text,
-                  fontSize: 14,
-                  fontWeight: isSelected ? 700 : 500,
-                  transition: "all 0.15s ease",
-                  userSelect: "none",
                 }}
               >
                 {String(option).padStart(2, "0")}
@@ -608,7 +539,7 @@ function RadarChart({ data }) {
     .join(" ");
 
   return (
-    <div style={{ display: "flex", justifyContent: "center" }}>
+    <div className="sleep-radar-wrap">
       <svg width={260} height={260} style={{ overflow: "visible" }}>
         {[...Array(levels)].map((_, levelIndex) => {
           const r = (radius / levels) * (levelIndex + 1);
@@ -740,23 +671,8 @@ function WeeklyBarChart({ data }) {
   const maxHours = Math.max(...displayData.map((d) => d.hours), 1);
 
   return (
-    <div
-      style={{
-        flex: 1,
-        minHeight: 0,
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      <div
-        style={{
-          flex: 1,
-          minHeight: 0,
-          display: "flex",
-          gap: 14,
-          padding: "4px 4px 0",
-        }}
-      >
+    <div className="sleep-weekly-chart">
+      <div className="sleep-weekly-bars">
         {displayData.map((item) => {
           const barHeight =
             item.hours === 0
@@ -767,55 +683,30 @@ function WeeklyBarChart({ data }) {
           return (
             <div
               key={item.date}
+              className="sleep-weekly-bar-col"
               onMouseEnter={() => setHoveredDay(item.date)}
               onMouseLeave={() => setHoveredDay(null)}
-              style={{
-                flex: 1,
-                minWidth: 0,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "flex-end",
-                cursor: "pointer",
-              }}
             >
               <span
-                style={{
-                  fontSize: 12,
-                  color: isHovered ? colors.text : colors.sub,
-                  fontWeight: isHovered ? 700 : 400,
-                  transition: "all 0.2s ease",
-                  lineHeight: 1,
-                  marginBottom: 6,
-                }}
+                className={`sleep-weekly-bar-label-top ${
+                  isHovered ? "hovered" : "default"
+                }`}
               >
                 {item.hours.toFixed(1)}h
               </span>
 
-              <div
-                style={{
-                  flex: 1,
-                  width: "100%",
-                  display: "flex",
-                  alignItems: "flex-end",
-                  justifyContent: "center",
-                  minHeight: 0,
-                }}
-              >
+              <div className="sleep-weekly-bar-wrap">
                 <div
+                  className="sleep-weekly-bar"
                   style={{
-                    width: "100%",
-                    maxWidth: 38,
                     height: barHeight,
                     background: colors.aiTag,
                     opacity: isHovered ? 0.45 : 0.25,
                     border: `1px solid ${colors.aiTag}`,
-                    borderRadius: 10,
                     transform: isHovered ? "translateY(-3px)" : "translateY(0)",
                     boxShadow: isHovered
                       ? `0 8px 18px ${colors.aiTagLight}`
                       : "none",
-                    transition: "all 0.2s ease",
                   }}
                 />
               </div>
@@ -824,48 +715,23 @@ function WeeklyBarChart({ data }) {
         })}
       </div>
 
-      <div
-        style={{
-          height: 1,
-          background: colors.border,
-          opacity: 0.8,
-          margin: "8px 4px 8px",
-          flexShrink: 0,
-        }}
-      />
+      <div className="sleep-weekly-divider" />
 
-      <div
-        style={{
-          display: "flex",
-          gap: 14,
-          padding: "0 4px",
-          flexShrink: 0,
-        }}
-      >
+      <div className="sleep-weekly-days">
         {displayData.map((item) => {
           const isHovered = hoveredDay === item.date;
 
           return (
             <div
               key={`${item.date}-label`}
+              className="sleep-weekly-day-col"
               onMouseEnter={() => setHoveredDay(item.date)}
               onMouseLeave={() => setHoveredDay(null)}
-              style={{
-                flex: 1,
-                minWidth: 0,
-                display: "flex",
-                justifyContent: "center",
-                cursor: "pointer",
-              }}
             >
               <span
-                style={{
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color: isHovered ? colors.aiTag : colors.text,
-                  transition: "color 0.2s ease",
-                  lineHeight: 1,
-                }}
+                className={`sleep-weekly-day-text ${
+                  isHovered ? "hovered" : "default"
+                }`}
               >
                 {item.day}
               </span>
@@ -877,7 +743,7 @@ function WeeklyBarChart({ data }) {
   );
 }
 
-function SleepPage() {
+export default function SleepPage() {
   const [selectedDate, setSelectedDate] = useState(() =>
     formatLocalDate(new Date()),
   );
@@ -900,6 +766,7 @@ function SleepPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isLoadingRecord, setIsLoadingRecord] = useState(false);
   const [wearableStatus, setWearableStatus] = useState("미연동");
+  const [isFitbitConnected, setIsFitbitConnected] = useState(false);
 
   const sleepHours = useMemo(
     () => calculateSleepHours(bedHour, bedMinute, wakeHour, wakeMinute),
@@ -967,54 +834,37 @@ function SleepPage() {
   const hours = Array.from({ length: 24 }, (_, i) => i);
   const minutes = Array.from({ length: 60 }, (_, i) => i);
 
-  const cardStyle = {
-    background: colors.card,
-    border: `1px solid ${colors.border}`,
-    borderRadius: 12,
-    padding: 16,
-    minWidth: 0,
-    boxSizing: "border-box",
-  };
-
-  const labelStyle = {
-    fontSize: 13,
-    fontWeight: 700,
-    color: colors.text,
-    marginBottom: 8,
-    display: "block",
-  };
-
   const getIntensityBadgeStyle = (intensity) => {
     switch (intensity) {
       case "매우 낮음":
         return {
-          background: "#f3f4f6",
-          color: "#6b7280",
-          border: "1px solid #d1d5db",
+          background: colors.bg,
+          color: colors.sub,
+          border: `1px solid ${colors.border}`,
         };
       case "낮음":
         return {
-          background: "#eff6ff",
-          color: "#2563eb",
-          border: "1px solid #bfdbfe",
+          background: colors.primaryLight,
+          color: colors.primary,
+          border: `1px solid ${colors.border}`,
         };
       case "중간":
         return {
-          background: "#ecfdf5",
-          color: "#059669",
-          border: "1px solid #a7f3d0",
+          background: colors.successLight,
+          color: colors.success,
+          border: `1px solid ${colors.border}`,
         };
       case "중간 이상":
         return {
-          background: "#fffbeb",
-          color: "#d97706",
-          border: "1px solid #fde68a",
+          background: colors.warningLight,
+          color: colors.warning,
+          border: `1px solid ${colors.border}`,
         };
       case "높음":
         return {
-          background: "#fef2f2",
-          color: "#dc2626",
-          border: "1px solid #fecaca",
+          background: colors.dangerLight,
+          color: colors.danger,
+          border: `1px solid ${colors.border}`,
         };
       default:
         return {
@@ -1046,22 +896,10 @@ function SleepPage() {
   useEffect(() => {
     const fetchSleepRecords = async () => {
       try {
-        const response = await fetch("http://localhost:5000/api/sleep-records");
-        const data = await response.json();
+        const data = await getSleepRecords();
 
         if (data.success && Array.isArray(data.records)) {
-          const normalized = data.records.map((record) => ({
-            ...record,
-            sleepHours: Number(record.sleepHours || 0),
-            satisfaction: Number(record.satisfaction || 0),
-            bedHour: Number(record.bedHour || 0),
-            bedMinute: Number(record.bedMinute || 0),
-            wakeHour: Number(record.wakeHour || 0),
-            wakeMinute: Number(record.wakeMinute || 0),
-            goals: Array.isArray(record.goals) ? record.goals : [],
-          }));
-
-          setSleepRecords(normalized);
+          setSleepRecords(data.records.map(normalizeSleepRecord));
         }
       } catch (error) {
         console.error("sleep records fetch error:", error);
@@ -1090,20 +928,17 @@ function SleepPage() {
       setIsLoadingRecord(true);
 
       try {
-        const response = await fetch(
-          `http://localhost:5000/api/sleep-records/${selectedDate}`,
-        );
-        const data = await response.json();
+        const data = await getSleepRecordByDate(selectedDate);
 
         if (isCancelled) return;
 
-        if (response.ok && data.success && data.record) {
-          const record = data.record;
+        if (data.success && data.record) {
+          const record = normalizeSleepRecord(data.record);
 
-          setBedHour(Number(record.bedHour ?? 23));
-          setBedMinute(Number(record.bedMinute ?? 30));
-          setWakeHour(Number(record.wakeHour ?? 7));
-          setWakeMinute(Number(record.wakeMinute ?? 30));
+          setBedHour(record.bedHour);
+          setBedMinute(record.bedMinute);
+          setWakeHour(record.wakeHour);
+          setWakeMinute(record.wakeMinute);
           setSatisfaction(Number(record.satisfaction ?? 0));
           setMemo(record.memo || "");
           setGoals(
@@ -1133,6 +968,67 @@ function SleepPage() {
     };
   }, [selectedDate]);
 
+  useEffect(() => {
+    const checkFitbitStatus = async () => {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const fitbitResult = params.get("fitbit");
+
+        const statusData = await getFitbitStatus();
+
+        if (statusData.success && statusData.connected) {
+          setIsFitbitConnected(true);
+          setWearableStatus("연동 완료");
+        } else {
+          setIsFitbitConnected(false);
+          setWearableStatus("미연동");
+        }
+
+        if (fitbitResult) {
+          window.history.replaceState(
+            {},
+            document.title,
+            window.location.pathname,
+          );
+        }
+      } catch (error) {
+        console.error("Fitbit 상태 확인 오류:", error);
+        setIsFitbitConnected(false);
+        setWearableStatus("미연동");
+      }
+    };
+
+    checkFitbitStatus();
+  }, []);
+
+  useEffect(() => {
+    const loadFitbitSleepData = async () => {
+      if (!isFitbitConnected || !selectedDate) return;
+
+      try {
+        const sleepData = await getFitbitSleepByDate(selectedDate);
+
+        if (sleepData.success && sleepData.record) {
+          const record = sleepData.record;
+
+          setBedHour(Number(record.bedHour ?? 23));
+          setBedMinute(Number(record.bedMinute ?? 30));
+          setWakeHour(Number(record.wakeHour ?? 7));
+          setWakeMinute(Number(record.wakeMinute ?? 30));
+
+          setMemo((prev) => {
+            if (prev?.trim()) return prev;
+            return "Fitbit에서 자동으로 불러온 수면 기록입니다.";
+          });
+        }
+      } catch (error) {
+        console.error("Fitbit 수면 데이터 불러오기 오류:", error);
+      }
+    };
+
+    loadFitbitSleepData();
+  }, [isFitbitConnected, selectedDate]);
+
   const handleSaveRecord = async () => {
     const payload = {
       date: selectedDate,
@@ -1150,40 +1046,19 @@ function SleepPage() {
       goals,
     };
 
-    const response = await fetch("http://localhost:5000/api/sleep-records", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-
-    const data = await response.json();
+    const data = await saveSleepRecord(payload);
 
     if (!data.success) {
       throw new Error(data.message || "수면 기록 저장 실패");
     }
 
-    const savedRecord = {
-      ...data.record,
-      date: data.record.date,
-      sleepHours: Number(data.record.sleepHours || 0),
-      satisfaction: Number(data.record.satisfaction || 0),
-      bedHour: Number(data.record.bedHour || 0),
-      bedMinute: Number(data.record.bedMinute || 0),
-      wakeHour: Number(data.record.wakeHour || 0),
-      wakeMinute: Number(data.record.wakeMinute || 0),
-      goals: Array.isArray(data.record.goals) ? data.record.goals : [],
-    };
+    const refresh = await getSleepRecords();
 
-    setSleepRecords((prev) => {
-      const filtered = prev.filter(
-        (record) => record.date !== savedRecord.date,
-      );
-      return [...filtered, savedRecord].sort((a, b) =>
-        a.date.localeCompare(b.date),
-      );
-    });
+    if (refresh.success && Array.isArray(refresh.records)) {
+      setSleepRecords(refresh.records.map(normalizeSleepRecord));
+    }
 
-    return savedRecord;
+    return data.record;
   };
 
   const handleAddGoal = () => {
@@ -1205,8 +1080,29 @@ function SleepPage() {
     }
   };
 
-  const handleWearableSync = () => {
-    setWearableStatus("연동 준비중");
+  const handleWearableSync = async () => {
+    try {
+      setWearableStatus("연동 중");
+
+      const data = await connectFitbit();
+      console.log("Fitbit connect 응답:", data);
+
+      if (data.success && data.authUrl) {
+        window.location.href = data.authUrl;
+        return;
+      }
+
+      alert(data.message || "authUrl이 없음");
+      setWearableStatus("미연동");
+    } catch (error) {
+      console.error("Fitbit 연동 오류:", error);
+      alert(
+        error?.response?.data?.message ||
+          error?.message ||
+          "Fitbit connect 요청 실패",
+      );
+      setWearableStatus("미연동");
+    }
   };
 
   const handleAnalyzeWithAI = async () => {
@@ -1218,25 +1114,19 @@ function SleepPage() {
 
       await handleSaveRecord();
 
-      const response = await fetch("http://localhost:5000/api/sleep-coach", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sleepHours,
-          satisfaction,
-          memo,
-          missionRate,
-          sleepQuality,
-          freshness,
-          growth,
-          bedHour,
-          bedMinute,
-          wakeHour,
-          wakeMinute,
-        }),
+      const data = await getSleepCoachFeedback({
+        sleepHours,
+        satisfaction,
+        memo,
+        missionRate,
+        sleepQuality,
+        freshness,
+        growth,
+        bedHour,
+        bedMinute,
+        wakeHour,
+        wakeMinute,
       });
-
-      const data = await response.json();
 
       if (data.success) {
         setAiCoachComment(data.coachComment || "");
@@ -1263,929 +1153,378 @@ function SleepPage() {
   const isFormDisabled = isLoadingRecord || isAnalyzing;
 
   return (
-    <div>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          marginBottom: 16,
-        }}
-      >
-        <h2
-          style={{
-            margin: 0,
-            fontSize: 18,
-            fontWeight: 800,
-            color: colors.text,
-          }}
-        >
-          수면관리
-        </h2>
-        <span
-          style={{
-            background: colors.aiTagLight,
-            color: colors.aiTag,
-            borderRadius: 6,
-            padding: "2px 8px",
-            fontSize: 11,
-            fontWeight: 600,
-          }}
-        >
-          ✦ AI 분석 포함
-        </span>
-      </div>
+    <div
+      className="sleep-page"
+      style={{
+        "--sleep-card-bg": colors.card,
+        "--sleep-border": colors.border,
+        "--sleep-text": colors.text,
+        "--sleep-sub": colors.sub,
+        "--sleep-bg": colors.card,
+        "--sleep-accent": colors.aiTag,
+        "--sleep-accent-light": colors.aiTagLight,
+      }}
+    >
+      <div className="sleep-page-root">
+        <div className="sleep-page-header">
+          <h2 className="sleep-page-title">수면관리</h2>
+          <span className="sleep-page-badge">✦ AI 분석 포함</span>
+        </div>
 
-      <p
-        style={{
-          margin: "0 0 20px",
-          color: colors.sub,
-          fontSize: 14,
-          lineHeight: 1.6,
-        }}
-      >
-        취침·기상 시간, 수면 만족도, 특이사항 메모, 기상 미션 수행률을 바탕으로
-        오늘의 수면 상태를 종합 분석합니다.
-      </p>
+        <p className="sleep-page-desc">
+          취침·기상 시간, 수면 만족도, 특이사항 메모, 기상 미션 수행률을
+          바탕으로 오늘의 수면 상태를 종합 분석합니다.
+        </p>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "2.35fr 1fr",
-          gap: 12,
-          alignItems: "start",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 12,
-            minWidth: 0,
-          }}
-        >
-          <div style={cardStyle}>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "flex-start",
-                marginBottom: 18,
-                gap: 12,
-                flexWrap: "wrap",
-              }}
-            >
-              <div style={{ minWidth: 0 }}>
-                <h3
-                  style={{
-                    margin: 0,
-                    fontSize: 16,
-                    fontWeight: 800,
-                    color: colors.text,
-                  }}
-                >
-                  수면 기록
-                </h3>
-                <span
-                  style={{
-                    display: "block",
-                    marginTop: 6,
-                    fontSize: 13,
-                    color: colors.sub,
-                  }}
-                >
-                  총 수면 시간 {sleepHours}시간
-                </span>
+        <div className="sleep-page-layout">
+          <div className="sleep-page-left">
+            <div className="sleep-card">
+              <div className="sleep-record-header">
+                <div className="sleep-record-header-left">
+                  <h3 className="sleep-card-title">수면 기록</h3>
+                  <span className="sleep-record-sub">
+                    총 수면 시간 {sleepHours}시간
+                  </span>
+                </div>
+
+                <div className="sleep-record-actions">
+                  <span
+                    className={`sleep-status-chip ${
+                      wearableStatus === "미연동" ? "is-inactive" : "is-active"
+                    }`}
+                  >
+                    {wearableStatus}
+                  </span>
+
+                  <button
+                    type="button"
+                    onClick={handleWearableSync}
+                    className="sleep-btn sleep-btn-secondary"
+                  >
+                    ⌚ 웨어러블 연동
+                  </button>
+                </div>
               </div>
 
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  flexWrap: "wrap",
-                  justifyContent: "flex-end",
-                }}
-              >
-                <span
-                  style={{
-                    padding: "5px 10px",
-                    borderRadius: 999,
-                    border: `1px solid ${colors.border}`,
-                    background:
-                      wearableStatus === "미연동" ? "#fff" : colors.aiTagLight,
-                    color:
-                      wearableStatus === "미연동" ? colors.sub : colors.aiTag,
-                    fontSize: 12,
-                    fontWeight: 700,
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {wearableStatus}
-                </span>
+              <div className="sleep-form-grid">
+                <div>
+                  <label className="sleep-label">날짜</label>
+                  <input
+                    type="date"
+                    value={selectedDate}
+                    disabled={isLoadingRecord}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    className="sleep-date-input"
+                  />
+                </div>
 
-                <button
-                  type="button"
-                  onClick={handleWearableSync}
-                  style={{
-                    height: 34,
-                    padding: "0 12px",
-                    borderRadius: 8,
-                    border: `1px solid ${colors.border}`,
-                    background: colors.background || "#fff",
-                    color: colors.text,
-                    fontWeight: 700,
-                    fontSize: 12,
-                    cursor: "pointer",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  ⌚ 웨어러블 연동
-                </button>
+                <div>
+                  <label className="sleep-label">취침 시간</label>
+                  <div className="sleep-time-grid">
+                    <TimeSelect
+                      value={bedHour}
+                      onChange={setBedHour}
+                      options={hours}
+                      unit="시"
+                      disabled={isFormDisabled}
+                    />
+                    <TimeSelect
+                      value={bedMinute}
+                      onChange={setBedMinute}
+                      options={minutes}
+                      unit="분"
+                      disabled={isFormDisabled}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="sleep-label">기상 시간</label>
+                  <div className="sleep-time-grid">
+                    <TimeSelect
+                      value={wakeHour}
+                      onChange={setWakeHour}
+                      options={hours}
+                      unit="시"
+                      disabled={isFormDisabled}
+                    />
+                    <TimeSelect
+                      value={wakeMinute}
+                      onChange={setWakeMinute}
+                      options={minutes}
+                      unit="분"
+                      disabled={isFormDisabled}
+                    />
+                  </div>
+                </div>
               </div>
-            </div>
 
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1.15fr 1fr 1fr",
-                gap: 14,
-                marginBottom: 16,
-                alignItems: "end",
-              }}
-            >
-              <div>
-                <label style={labelStyle}>날짜</label>
-                <input
-                  type="date"
-                  value={selectedDate}
-                  disabled={isLoadingRecord}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  style={{
-                    width: "100%",
-                    height: 42,
-                    border: `1px solid ${colors.border}`,
-                    borderRadius: 10,
-                    padding: "0 10px",
-                    fontSize: 14,
-                    color: colors.text,
-                    background: colors.background || "#fff",
-                    outline: "none",
-                    boxSizing: "border-box",
-                    opacity: isLoadingRecord ? 0.7 : 1,
-                  }}
+              <div className="sleep-rating-wrap">
+                <label className="sleep-label">수면 만족도</label>
+                <StarRating
+                  value={satisfaction}
+                  onChange={setSatisfaction}
+                  disabled={isFormDisabled}
                 />
               </div>
 
               <div>
-                <label style={labelStyle}>취침 시간</label>
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: 6,
-                  }}
-                >
-                  <TimeSelect
-                    value={bedHour}
-                    onChange={setBedHour}
-                    options={hours}
-                    unit="시"
-                    disabled={isFormDisabled}
-                  />
-                  <TimeSelect
-                    value={bedMinute}
-                    onChange={setBedMinute}
-                    options={minutes}
-                    unit="분"
-                    disabled={isFormDisabled}
-                  />
-                </div>
-              </div>
+                <label className="sleep-label">메모</label>
+                <textarea
+                  value={memo}
+                  disabled={isFormDisabled}
+                  onChange={(e) => setMemo(e.target.value)}
+                  placeholder="예: 중간에 두 번 깼음, 꿈을 많이 꿈, 아침에 몸이 무거웠음, 평소보다 개운했음"
+                  className="sleep-textarea"
+                />
 
-              <div>
-                <label style={labelStyle}>기상 시간</label>
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: 6,
-                  }}
-                >
-                  <TimeSelect
-                    value={wakeHour}
-                    onChange={setWakeHour}
-                    options={hours}
-                    unit="시"
-                    disabled={isFormDisabled}
-                  />
-                  <TimeSelect
-                    value={wakeMinute}
-                    onChange={setWakeMinute}
-                    options={minutes}
-                    unit="분"
-                    disabled={isFormDisabled}
-                  />
+                <div className="sleep-memo-footer">
+                  <p className="sleep-memo-help">
+                    여기에 적은 수면 세부사항은 AI 코치 분석에 반영됩니다.
+                  </p>
+
+                  <div className="sleep-inline-actions">
+                    <button
+                      type="button"
+                      onClick={handleAnalyzeWithAI}
+                      disabled={isFormDisabled}
+                      className="sleep-btn sleep-btn-primary"
+                    >
+                      {isAnalyzing
+                        ? "저장 및 AI 분석 중..."
+                        : isLoadingRecord
+                          ? "기록 불러오는 중..."
+                          : "저장 후 AI 분석하기"}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div style={{ marginBottom: 16 }}>
-              <label style={labelStyle}>수면 만족도</label>
-              <StarRating
-                value={satisfaction}
-                onChange={setSatisfaction}
-                disabled={isFormDisabled}
-              />
-            </div>
+            <div className="sleep-middle-grid">
+              <div className="sleep-card sleep-chart-card">
+                <div className="sleep-card-head-between mb10">
+                  <h3 className="sleep-card-title">주간 수면 그래프</h3>
+                  <span className="sleep-week-range">
+                    {getWeekRangeLabel(selectedDate)}
+                  </span>
+                </div>
 
-            <div>
-              <label style={labelStyle}>메모</label>
-              <textarea
-                value={memo}
-                disabled={isFormDisabled}
-                onChange={(e) => setMemo(e.target.value)}
-                placeholder="예: 중간에 두 번 깼음, 꿈을 많이 꿈, 아침에 몸이 무거웠음, 평소보다 개운했음"
-                style={{
-                  width: "100%",
-                  minHeight: 110,
-                  resize: "none",
-                  border: `1px solid ${colors.border}`,
-                  borderRadius: 10,
-                  padding: 12,
-                  fontSize: 14,
-                  color: colors.text,
-                  background: colors.background || "#fff",
-                  outline: "none",
-                  boxSizing: "border-box",
-                  lineHeight: 1.6,
-                  opacity: isFormDisabled ? 0.7 : 1,
-                }}
-              />
+                <WeeklyBarChart data={weeklyChartData} />
+              </div>
 
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginTop: 10,
-                  gap: 10,
-                  flexWrap: "wrap",
-                }}
-              >
-                <p
-                  style={{
-                    margin: 0,
-                    fontSize: 12,
-                    color: colors.sub,
-                    lineHeight: 1.4,
-                    flex: 1,
-                  }}
-                >
-                  여기에 적은 수면 세부사항은 AI 코치 분석에 반영됩니다.
-                </p>
-
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <div className="sleep-card sleep-goals-card">
+                <div className="sleep-card-head-between mb16">
+                  <h3 className="sleep-card-title">기상 목표</h3>
                   <button
                     type="button"
-                    onClick={handleAnalyzeWithAI}
+                    onClick={() => setIsEditingGoals((prev) => !prev)}
                     disabled={isFormDisabled}
-                    style={{
-                      padding: "10px 16px",
-                      borderRadius: 8,
-                      border: `1px solid ${colors.border}`,
-                      background: colors.aiTag,
-                      color: "#fff",
-                      fontWeight: 700,
-                      cursor: isFormDisabled ? "default" : "pointer",
-                      opacity: isFormDisabled ? 0.7 : 1,
-                      whiteSpace: "nowrap",
-                    }}
+                    className="sleep-btn sleep-btn-small"
                   >
-                    {isAnalyzing
-                      ? "저장 및 AI 분석 중..."
-                      : isLoadingRecord
-                        ? "기록 불러오는 중..."
-                        : "저장 후 AI 분석하기"}
+                    {isEditingGoals ? "완료" : "수정"}
                   </button>
                 </div>
-              </div>
-            </div>
-          </div>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "2fr 1.1fr",
-              gap: 12,
-              alignItems: "start",
-              minWidth: 0,
-            }}
-          >
-            <div
-              style={{
-                ...cardStyle,
-                height: 320,
-                display: "flex",
-                flexDirection: "column",
-                minWidth: 0,
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginBottom: 10,
-                  gap: 12,
-                }}
-              >
-                <h3
-                  style={{
-                    margin: 0,
-                    fontSize: 16,
-                    fontWeight: 800,
-                    color: colors.text,
-                  }}
-                >
-                  주간 수면 그래프
-                </h3>
+                <div className="sleep-goals-list">
+                  {goals.map((goal, index) => (
+                    <div
+                      key={index}
+                      className={`sleep-goal-row ${
+                        isEditingGoals ? "editing" : "view"
+                      } ${isFormDisabled ? "disabled" : ""}`}
+                    >
+                      <input
+                        type="checkbox"
+                        disabled={isFormDisabled}
+                        checked={goal.done}
+                        onChange={() => {
+                          const next = [...goals];
+                          next[index] = {
+                            ...next[index],
+                            done: !next[index].done,
+                          };
+                          setGoals(next);
+                        }}
+                      />
 
-                <span
-                  style={{
-                    fontSize: 12,
-                    color: colors.sub,
-                    fontWeight: 600,
-                    whiteSpace: "nowrap",
-                    flexShrink: 0,
-                  }}
-                >
-                  {getWeekRangeLabel(selectedDate)}
-                </span>
-              </div>
+                      <div className="sleep-goal-content">
+                        {isEditingGoals ? (
+                          <input
+                            type="text"
+                            disabled={isFormDisabled}
+                            value={goal.text}
+                            onChange={(e) => {
+                              const next = [...goals];
+                              next[index] = {
+                                ...next[index],
+                                text: e.target.value,
+                              };
+                              setGoals(next);
+                            }}
+                            className="sleep-goal-input"
+                          />
+                        ) : (
+                          <div className="sleep-goal-text">{goal.text}</div>
+                        )}
+                      </div>
 
-              <WeeklyBarChart data={weeklyChartData} />
-            </div>
-
-            <div
-              style={{
-                ...cardStyle,
-                height: 320,
-                overflow: "hidden",
-                display: "flex",
-                flexDirection: "column",
-                minWidth: 0,
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginBottom: 16,
-                  gap: 8,
-                }}
-              >
-                <h3
-                  style={{
-                    margin: 0,
-                    fontSize: 16,
-                    fontWeight: 800,
-                    color: colors.text,
-                  }}
-                >
-                  기상 목표
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => setIsEditingGoals((prev) => !prev)}
-                  disabled={isFormDisabled}
-                  style={{
-                    padding: "7px 12px",
-                    borderRadius: 8,
-                    border: `1px solid ${colors.border}`,
-                    background: colors.background || "#fff",
-                    color: colors.text,
-                    fontWeight: 700,
-                    fontSize: 12,
-                    cursor: isFormDisabled ? "default" : "pointer",
-                    flexShrink: 0,
-                    opacity: isFormDisabled ? 0.7 : 1,
-                  }}
-                >
-                  {isEditingGoals ? "완료" : "수정"}
-                </button>
-              </div>
-
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 12,
-                  overflowY: "auto",
-                  paddingRight: 4,
-                  minHeight: 0,
-                }}
-              >
-                {goals.map((goal, index) => (
-                  <div
-                    key={index}
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: isEditingGoals
-                        ? "20px 1fr 64px"
-                        : "20px 1fr",
-                      alignItems: "center",
-                      gap: 10,
-                      minWidth: 0,
-                      opacity: isFormDisabled ? 0.7 : 1,
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      disabled={isFormDisabled}
-                      checked={goal.done}
-                      onChange={() => {
-                        const next = [...goals];
-                        next[index] = {
-                          ...next[index],
-                          done: !next[index].done,
-                        };
-                        setGoals(next);
-                      }}
-                    />
-
-                    <div style={{ width: "100%", minWidth: 0 }}>
-                      {isEditingGoals ? (
-                        <input
-                          type="text"
+                      {isEditingGoals && (
+                        <button
+                          type="button"
                           disabled={isFormDisabled}
-                          value={goal.text}
-                          onChange={(e) => {
-                            const next = [...goals];
-                            next[index] = {
-                              ...next[index],
-                              text: e.target.value,
-                            };
-                            setGoals(next);
-                          }}
-                          style={{
-                            width: "100%",
-                            height: 36,
-                            border: `1px solid ${colors.border}`,
-                            borderRadius: 8,
-                            padding: "0 10px",
-                            fontSize: 14,
-                            color: colors.text,
-                            background: colors.background || "#fff",
-                            outline: "none",
-                            boxSizing: "border-box",
-                          }}
-                        />
-                      ) : (
-                        <div
-                          style={{
-                            height: 36,
-                            display: "flex",
-                            alignItems: "center",
-                            fontSize: 15,
-                            fontWeight: 700,
-                            color: colors.text,
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                          }}
+                          onClick={() => handleDeleteGoal(index)}
+                          className="sleep-btn sleep-btn-danger"
                         >
-                          {goal.text}
-                        </div>
+                          삭제
+                        </button>
                       )}
                     </div>
+                  ))}
 
-                    {isEditingGoals && (
+                  {isEditingGoals && (
+                    <div className="sleep-goal-add-row">
+                      <input
+                        type="text"
+                        disabled={isFormDisabled}
+                        value={newGoalText}
+                        onChange={(e) => setNewGoalText(e.target.value)}
+                        onKeyDown={handleNewGoalKeyDown}
+                        placeholder="새 기상 목표 추가"
+                        className="sleep-goal-add-input"
+                      />
+
                       <button
                         type="button"
                         disabled={isFormDisabled}
-                        onClick={() => handleDeleteGoal(index)}
-                        style={{
-                          height: 36,
-                          borderRadius: 8,
-                          border: `1px solid ${colors.border}`,
-                          background: "#fff",
-                          color: "#e14b4b",
-                          fontWeight: 700,
-                          fontSize: 13,
-                          cursor: isFormDisabled ? "default" : "pointer",
-                          flexShrink: 0,
-                          opacity: isFormDisabled ? 0.7 : 1,
-                        }}
+                        onClick={handleAddGoal}
+                        className="sleep-btn sleep-btn-accent"
                       >
-                        삭제
+                        추가
                       </button>
-                    )}
-                  </div>
-                ))}
-
-                {isEditingGoals && (
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "1fr 64px",
-                      gap: 10,
-                      marginTop: 4,
-                    }}
-                  >
-                    <input
-                      type="text"
-                      disabled={isFormDisabled}
-                      value={newGoalText}
-                      onChange={(e) => setNewGoalText(e.target.value)}
-                      onKeyDown={handleNewGoalKeyDown}
-                      placeholder="새 기상 목표 추가"
-                      style={{
-                        width: "100%",
-                        height: 36,
-                        border: `1px solid ${colors.border}`,
-                        borderRadius: 8,
-                        padding: "0 10px",
-                        fontSize: 14,
-                        color: colors.text,
-                        background: colors.background || "#fff",
-                        outline: "none",
-                        boxSizing: "border-box",
-                        opacity: isFormDisabled ? 0.7 : 1,
-                      }}
-                    />
-
-                    <button
-                      type="button"
-                      disabled={isFormDisabled}
-                      onClick={handleAddGoal}
-                      style={{
-                        height: 36,
-                        borderRadius: 8,
-                        border: "none",
-                        background: colors.aiTag,
-                        color: "#fff",
-                        fontWeight: 700,
-                        fontSize: 13,
-                        cursor: isFormDisabled ? "default" : "pointer",
-                        opacity: isFormDisabled ? 0.7 : 1,
-                      }}
-                    >
-                      추가
-                    </button>
-                  </div>
-                )}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 12,
-            alignSelf: "start",
-            minWidth: 0,
-          }}
-        >
-          <div style={cardStyle}>
-            <h3
-              style={{
-                margin: "0 0 12px",
-                fontSize: 16,
-                fontWeight: 800,
-                color: colors.text,
-              }}
-            >
-              오늘의 총정리
-            </h3>
-            <RadarChart data={radarData} />
-          </div>
+          <div className="sleep-page-right">
+            <div className="sleep-card">
+              <h3 className="sleep-card-title sleep-card-title-margin">
+                오늘의 총정리
+              </h3>
+              <RadarChart data={radarData} />
+            </div>
 
-          <div
-            style={{
-              ...cardStyle,
-              height: 441,
-              display: "flex",
-              flexDirection: "column",
-              minWidth: 0,
-            }}
-          >
-            <h3
-              style={{
-                margin: "0 0 14px",
-                fontSize: 16,
-                fontWeight: 800,
-                color: colors.text,
-              }}
-            >
-              AI 코치 분석
-            </h3>
+            <div className="sleep-card sleep-summary-card">
+              <h3 className="sleep-card-title sleep-card-title-margin-lg">
+                AI 코치 분석
+              </h3>
 
-            <div
-              style={{
-                flex: 1,
-                minHeight: 0,
-                overflowY: "auto",
-                border: `1px solid ${colors.border}`,
-                borderRadius: 10,
-                padding: 16,
-                background: colors.background || "#fff",
-                color: colors.text,
-                fontSize: 14,
-                lineHeight: 1.8,
-                wordBreak: "keep-all",
-                overflowWrap: "break-word",
-              }}
-            >
-              {!hasAnalyzed ? (
-                <div
-                  style={{
-                    height: "100%",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    textAlign: "center",
-                    color: colors.sub,
-                    padding: "0 12px",
-                  }}
-                >
-                  저장 후 AI 분석하기 버튼을 누르면 오늘 수면 상태를 바탕으로
-                  운동 강도, 추천 운동, 수면 피드백을 분석해드려요.
-                </div>
-              ) : isAnalyzing ? (
-                <div
-                  style={{
-                    height: "100%",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    textAlign: "center",
-                    color: colors.sub,
-                  }}
-                >
-                  AI 코치가 오늘의 수면 데이터를 분석하고 있어요...
-                </div>
-              ) : aiCoachData ? (
-                <div
-                  style={{ display: "flex", flexDirection: "column", gap: 14 }}
-                >
-                  <div
-                    style={{
-                      padding: 14,
-                      borderRadius: 12,
-                      background: colors.card,
-                      border: `1px solid ${colors.border}`,
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: 12,
-                        color: colors.sub,
-                        marginBottom: 6,
-                      }}
-                    >
-                      오늘 상태 요약
-                    </div>
-                    <div
-                      style={{
-                        fontSize: 15,
-                        fontWeight: 800,
-                        color: colors.text,
-                      }}
-                    >
-                      {aiCoachData.summary}
-                    </div>
+              <div className="sleep-ai-box">
+                {!hasAnalyzed ? (
+                  <div className="sleep-ai-placeholder">
+                    저장 후 AI 분석하기 버튼을 누르면 오늘 수면 상태를 바탕으로
+                    운동 강도, 추천 운동, 수면 피드백을 분석해드려요.
                   </div>
-
-                  <div
-                    style={{
-                      padding: 14,
-                      borderRadius: 12,
-                      background: colors.card,
-                      border: `1px solid ${colors.border}`,
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: 12,
-                        color: colors.sub,
-                        marginBottom: 8,
-                      }}
-                    >
-                      추천 운동 강도
-                    </div>
-                    <span
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        height: 32,
-                        padding: "0 12px",
-                        borderRadius: 999,
-                        fontSize: 13,
-                        fontWeight: 800,
-                        ...getIntensityBadgeStyle(
-                          aiCoachData.exercise_intensity,
-                        ),
-                      }}
-                    >
-                      {aiCoachData.exercise_intensity}
-                    </span>
+                ) : isAnalyzing ? (
+                  <div className="sleep-ai-loading">
+                    AI 코치가 오늘의 수면 데이터를 분석하고 있어요...
                   </div>
-
-                  <div
-                    style={{
-                      padding: 14,
-                      borderRadius: 12,
-                      background: colors.card,
-                      border: `1px solid ${colors.border}`,
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: 12,
-                        color: colors.sub,
-                        marginBottom: 8,
-                      }}
-                    >
-                      추천 운동
-                    </div>
-
-                    <div
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 8,
-                      }}
-                    >
-                      {aiCoachData.recommended_workout?.map((item, index) => (
-                        <div
-                          key={index}
-                          style={{
-                            display: "flex",
-                            alignItems: "flex-start",
-                            gap: 8,
-                            padding: "10px 12px",
-                            borderRadius: 10,
-                            background: colors.background || "#fff",
-                            border: `1px solid ${colors.border}`,
-                          }}
-                        >
-                          <span style={{ fontSize: 14 }}>🏃</span>
-                          <span style={{ flex: 1 }}>{item}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div
-                    style={{
-                      padding: 14,
-                      borderRadius: 12,
-                      background: colors.card,
-                      border: `1px solid ${colors.border}`,
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: 12,
-                        color: colors.sub,
-                        marginBottom: 8,
-                      }}
-                    >
-                      피해야 할 운동
-                    </div>
-
-                    <div
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 8,
-                      }}
-                    >
-                      {aiCoachData.avoid_workout?.length ? (
-                        aiCoachData.avoid_workout.map((item, index) => (
-                          <div
-                            key={index}
-                            style={{
-                              display: "flex",
-                              alignItems: "flex-start",
-                              gap: 8,
-                              padding: "10px 12px",
-                              borderRadius: 10,
-                              background: colors.background || "#fff",
-                              border: `1px solid ${colors.border}`,
-                            }}
-                          >
-                            <span style={{ fontSize: 14 }}>⚠️</span>
-                            <span style={{ flex: 1 }}>{item}</span>
-                          </div>
-                        ))
-                      ) : (
-                        <div style={{ color: colors.sub }}>
-                          특별히 제한할 운동은 없어요.
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div
-                    style={{
-                      padding: 14,
-                      borderRadius: 12,
-                      background: colors.card,
-                      border: `1px solid ${colors.border}`,
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: 12,
-                        color: colors.sub,
-                        marginBottom: 6,
-                      }}
-                    >
-                      수면 피드백
-                    </div>
-                    <div style={{ color: colors.text }}>
-                      {aiCoachData.sleep_feedback}
-                    </div>
-                  </div>
-
-                  <div
-                    style={{
-                      padding: 14,
-                      borderRadius: 12,
-                      background: colors.card,
-                      border: `1px solid ${colors.border}`,
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: 12,
-                        color: colors.sub,
-                        marginBottom: 6,
-                      }}
-                    >
-                      코치 한마디
-                    </div>
-                    <div style={{ color: colors.text, fontWeight: 700 }}>
-                      {aiCoachData.coach_message}
-                    </div>
-                  </div>
-
-                  <div
-                    style={{
-                      padding: 14,
-                      borderRadius: 12,
-                      background: colors.aiTagLight,
-                      border: `1px solid ${colors.border}`,
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: 12,
-                        color: colors.sub,
-                        marginBottom: 6,
-                      }}
-                    >
-                      오늘 실천할 것
-                    </div>
-                    <div style={{ color: colors.text, fontWeight: 800 }}>
-                      {aiCoachData.today_action}
-                    </div>
-                  </div>
-
-                  {aiCoachData.warning_note ? (
-                    <div
-                      style={{
-                        padding: 14,
-                        borderRadius: 12,
-                        background: "#fff7ed",
-                        border: "1px solid #fed7aa",
-                        color: "#9a3412",
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontSize: 12,
-                          marginBottom: 6,
-                          fontWeight: 700,
-                        }}
-                      >
-                        주의
+                ) : aiCoachData ? (
+                  <div className="sleep-ai-section-list">
+                    <div className="sleep-ai-section">
+                      <div className="sleep-ai-section-label">
+                        오늘 상태 요약
                       </div>
-                      <div>{aiCoachData.warning_note}</div>
+                      <div className="sleep-ai-summary">
+                        {aiCoachData.summary}
+                      </div>
                     </div>
-                  ) : null}
-                </div>
-              ) : (
-                <div style={{ whiteSpace: "pre-line", color: colors.text }}>
-                  {aiCoachComment || localCoachComment}
-                </div>
-              )}
+
+                    <div className="sleep-ai-section">
+                      <div className="sleep-ai-section-label mb8">
+                        추천 운동 강도
+                      </div>
+                      <span
+                        className="sleep-ai-badge"
+                        style={getIntensityBadgeStyle(
+                          aiCoachData.exercise_intensity,
+                        )}
+                      >
+                        {aiCoachData.exercise_intensity}
+                      </span>
+                    </div>
+
+                    <div className="sleep-ai-section">
+                      <div className="sleep-ai-section-label mb8">
+                        추천 운동
+                      </div>
+
+                      <div className="sleep-ai-item-list">
+                        {aiCoachData.recommended_workout?.length ? (
+                          aiCoachData.recommended_workout.map((item, index) => (
+                            <div key={index} className="sleep-ai-item">
+                              <span>🏃</span>
+                              <span className="sleep-ai-item-text">{item}</span>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="sleep-ai-empty">추천 운동이 없어요.</div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="sleep-ai-section">
+                      <div className="sleep-ai-section-label mb8">
+                        피해야 할 운동
+                      </div>
+
+                      <div className="sleep-ai-item-list">
+                        {aiCoachData.avoid_workout?.length ? (
+                          aiCoachData.avoid_workout.map((item, index) => (
+                            <div key={index} className="sleep-ai-item">
+                              <span>⚠️</span>
+                              <span className="sleep-ai-item-text">{item}</span>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="sleep-ai-empty">
+                            특별히 제한할 운동은 없어요.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="sleep-ai-section">
+                      <div className="sleep-ai-section-label">수면 피드백</div>
+                      <div>{aiCoachData.sleep_feedback}</div>
+                    </div>
+
+                    <div className="sleep-ai-section">
+                      <div className="sleep-ai-section-label">코치 한마디</div>
+                      <div>{aiCoachData.coach_message}</div>
+                    </div>
+
+                    <div className="sleep-ai-section">
+                      <div className="sleep-ai-section-label">오늘 실천할 것</div>
+                      <div>{aiCoachData.today_action}</div>
+                    </div>
+
+                    {aiCoachData.warning_note ? (
+                      <div className="sleep-ai-section">
+                        <div className="sleep-ai-section-label">주의</div>
+                        <div>{aiCoachData.warning_note}</div>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : (
+                  <div className="sleep-preserve-linebreaks">
+                    {aiCoachComment}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -2193,5 +1532,3 @@ function SleepPage() {
     </div>
   );
 }
-
-export default SleepPage;

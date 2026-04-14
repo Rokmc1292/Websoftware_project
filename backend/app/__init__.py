@@ -60,15 +60,23 @@ def create_app():
     from .routes.diet import diet_bp
     app.register_blueprint(diet_bp, url_prefix='/api/diet')
 
+    from .routes.profile import profile_bp
+    app.register_blueprint(profile_bp, url_prefix='/api/profile')
+
     from .routes.sleep import sleep_bp
     app.register_blueprint(sleep_bp, url_prefix='/api')
 
-    # ── 앱 컨텍스트 안에서 테이블 생성 ──
-    # app.app_context() : Flask 앱 컨텍스트 — db, jwt 등의 확장이 활성화된 환경
-    # with 블록 안에서만 db.create_all() 등을 사용할 수 있음
-    with app.app_context():
-        # db.create_all() : models 폴더의 클래스를 기반으로 DB 테이블을 생성
-        # 이미 테이블이 있으면 건너뜀 (덮어쓰지 않음)
-        db.create_all()
+    # stats 블루프린트 등록 — /api/stats/* 경로 담당
+    # 예: GET /api/stats/monthly?year=2024&month=6
+    #     GET /api/stats/daily?date=2024-06-01
+    from .routes.stats import stats_bp
+    app.register_blueprint(stats_bp, url_prefix='/api/stats')
+
+    # Fitbit 블루프린트 등록 (/api/fitbit/*)
+    from .routes.fitbit import fitbit_bp
+    app.register_blueprint(fitbit_bp)
+
+    # DB 스키마는 database/schema.sql을 단일 진실원으로 관리합니다.
+    # 앱 시작 시점에 자동 ALTER/CREATE를 수행하지 않습니다.
 
     return app  # 완성된 Flask 앱 객체를 반환 — run.py에서 이 객체를 받아 서버를 실행

@@ -46,12 +46,26 @@ class User(db.Model):
     goal_protein = db.Column(SMALLINT(unsigned=True), nullable=False, default=100)
     goal_carbs = db.Column(SMALLINT(unsigned=True), nullable=False, default=300)
     goal_fat = db.Column(SMALLINT(unsigned=True), nullable=False, default=60)
-
     # created_at : 계정 생성 일시
     # DateTime : 날짜+시간 타입
     # default=datetime.utcnow : 새 행이 삽입될 때 자동으로 현재 UTC 시간이 저장됨
     # (utcnow는 함수 참조를 전달 — utcnow()처럼 괄호를 붙이면 앱 시작 시간이 기록되어 버림)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    profile = db.relationship(
+        'UserProfile',
+        backref='user',
+        uselist=False,
+        lazy=True,
+        cascade='all, delete-orphan'
+    )
+
+    social_identities = db.relationship(
+        'SocialIdentity',
+        backref='user',
+        lazy=True,
+        cascade='all, delete-orphan'
+    )
 
     # ─────────────────────────────────────────────
     # 메서드(Method) 정의
@@ -90,17 +104,31 @@ class User(db.Model):
         API 응답에서 사용자 정보를 클라이언트(React)에 전달할 때 사용
         password_hash는 절대 포함하지 않음 — 보안상 중요
         """
+        profile = self.profile.to_dict() if self.profile else {}
+        profile_note = profile.get('profile_note', '')
+        social_identities = list(self.social_identities or [])
+        has_social_identity = bool(social_identities)
+        is_social_only = has_social_identity and all(identity.is_social_only for identity in social_identities)
         return {
             'id': self.id,  # 사용자 고유 ID
             'username': self.username,  # 닉네임
             'email': self.email,  # 이메일
             'created_at': self.created_at.isoformat(),  # ISO 8601 형식 날짜 문자열 (예: "2024-01-15T09:30:00")
+            'has_social_identity': has_social_identity,
+            'is_social_only': is_social_only,
+            'social_providers': [identity.provider for identity in social_identities],
             'diet_goals': {
                 'calories': int(self.goal_calories or 2000),
                 'protein': int(self.goal_protein or 100),
                 'carbs': int(self.goal_carbs or 300),
                 'fat': int(self.goal_fat or 60),
             },
+            'profile_note': profile_note,
+            'height_cm': profile.get('height_cm'),
+            'weight_kg': profile.get('weight_kg'),
+            'skeletal_muscle_kg': profile.get('skeletal_muscle_kg'),
+            'body_fat_kg': profile.get('body_fat_kg'),
+            'profile': profile,
         }
 
     def __repr__(self):

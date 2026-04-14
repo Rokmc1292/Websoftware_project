@@ -1,0 +1,377 @@
+:root {
+    --c-bg: var(--theme-bg);
+    --c-card: var(--theme-card);
+    --c-border: var(--theme-border);
+    --c-text: var(--theme-text);
+    --c-sub: var(--theme-sub);
+    --c-muted: var(--theme-muted);
+    --c-primary: var(--theme-primary);
+    --c-primary-light: var(--theme-primary-light);
+    --c-success: var(--theme-success);
+    --c-success-light: var(--theme-success-light);
+    --c-danger: var(--theme-danger);
+    --c-danger-light: var(--theme-danger-light);
+    --r-sm: 6px;
+    --r-md: 8px;
+    --r-lg: 12px;
+    --g-xs: 8px;
+    --g-sm: 12px;
+    --g-md: 16px;
+    --g-lg: 24px;
+}
+
+
+.myPageContainer {
+    display: block;
+}
+
+.myPageMainCard {
+    background: var(--c-card);
+    border: 1px solid var(--c-border);
+    border-radius: var(--r-lg);
+    padding: 24px;
+    box-shadow: 0 10px 24px rgb(15 23 42 / 6%);
+}
+
+.myPageHeader {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--g-md);
+    margin-bottom: var(--g-lg);
+}
+
+.myPageTitle {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--c-text);
+}
+
+.myPageSubtitle {
+    margin: 6px 0 0;
+    font-size: 13px;
+    color: var(--c-sub);
+}
+
+.myPageMessage {
+    border-radius: var(--r-md);
+    padding: 10px 12px;
+    margin-bottom: var(--g-md);
+    font-size: 13px;
+}
+
+.myPageMessage.isSuccess {
+    background: var(--c-success-light);
+    color: var(--c-success);
+}
+
+.myPageMessage.isError {
+    background: var(--c-danger-light);
+    color: var(--c-danger);
+}
+
+.myPageLayout {
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr);
+    gap: var(--g-lg);
+}
+
+.myPageMenuCard,
+.myPageProfileCard,
+.myPageForm {
+    background: var(--c-card);
+    border: 1px solid var(--c-border);
+    border-radius: var(--r-lg);
+}
+
+.myPageMenuCard,
+.myPageProfileCard,
+.myPageForm {
+    padding: 16px;
+}
+
+.myPageMenuTitle {
+    margin-bottom: var(--g-sm);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--c-text);
+}
+
+.myPageMenuList {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.myPageMenuButton {
+    width: 100%;
+    border: 1px solid var(--c-border);
+    border-radius: var(--r-md);
+    padding: 12px 14px;
+    background: var(--c-card);
+    color: var(--c-sub);
+    text-align: left;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.myPageMenuButton.isActive {
+    border-color: var(--c-primary);
+    background: var(--c-primary-light);
+    color: var(--c-primary);
+}
+
+.myPageContentArea {
+    display: flex;
+    flex-direction: column;
+    gap: var(--g-md);
+}
+
+.myPageProfileCard {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.myPageProfileName {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--c-text);
+}
+
+.myPageProfileMeta {
+    font-size: 12px;
+    color: var(--c-sub);
+}
+
+.myPageSectionHeader {
+    margin-bottom: var(--g-md);
+}
+
+.myPageSectionTitle {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--c-text);
+}
+
+.myPageSectionDesc {
+    margin: 6px 0 0;
+    font-size: 12px;
+    color: var(--c-sub);
+    line-height: 1.6;
+}
+
+.myPageForm {
+    display: flex;
+    flex-direction: column;
+    gap: var(--g-sm);
+}
+
+.myPageField {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.myPageFieldGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--g-sm);
+}
+
+.myPageFieldLabel {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--c-sub);
+}
+
+.myPageInput,
+.myPageTextarea {
+    width: 100%;
+    border: 1px solid var(--c-border);
+    border-radius: var(--r-md);
+    padding: 10px 12px;
+    font-size: 13px;
+    color: var(--c-text);
+    background: var(--c-card);
+}
+
+.myPageTextarea {
+    resize: vertical;
+    min-height: 140px;
+}
+
+.myPageCharCount {
+    margin-top: -2px;
+    font-size: 11px;
+    color: var(--c-muted);
+    text-align: right;
+}
+
+.myPageFormActions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.myPageThemeOptions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--g-sm);
+}
+
+.myPageThemeButton {
+    border: 1px solid var(--c-border);
+    border-radius: var(--r-md);
+    padding: 12px;
+    background: var(--c-card);
+    color: var(--c-sub);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.myPageThemeButton.isActive {
+    border-color: var(--c-primary);
+    background: var(--c-primary-light);
+    color: var(--c-primary);
+}
+
+.myPagePrimaryButton {
+    border: 1px solid var(--c-primary);
+    border-radius: var(--r-md);
+    padding: 10px 14px;
+    background: var(--c-primary);
+    color: var(--c-card);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.myPageDangerTitle {
+    color: var(--c-danger);
+}
+
+.myPageDangerButton {
+    border: 1px solid var(--c-danger);
+    border-radius: var(--r-md);
+    padding: 10px 14px;
+    background: var(--c-danger);
+    color: var(--c-card);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.myPageDangerButton:disabled {
+    opacity: .6;
+    cursor: default;
+}
+
+.myPageImpactCard {
+    border: 1px solid color-mix(in srgb, var(--c-danger) 28%, var(--c-card));
+    border-radius: var(--r-md);
+    background: var(--c-danger-light);
+    padding: 12px;
+}
+
+.myPageImpactTitle {
+    margin: 0 0 8px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--c-danger);
+}
+
+.myPageImpactItem {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--c-text);
+}
+
+.myPageModalOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgb(30 41 59 / 45%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--g-md);
+    z-index: 1000;
+}
+
+.myPageModal {
+    width: min(100%, 520px);
+    background: var(--c-card);
+    border: 1px solid var(--c-border);
+    border-radius: var(--r-lg);
+    box-shadow: 0 16px 36px rgb(15 23 42 / 14%);
+    padding: 16px;
+}
+
+.myPageModalHeader {
+    margin-bottom: var(--g-sm);
+}
+
+.myPageModalTitle {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 800;
+}
+
+.myPageModalBody {
+    display: flex;
+    flex-direction: column;
+    gap: var(--g-sm);
+}
+
+.myPageModalActions {
+    margin-top: var(--g-md);
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--g-xs);
+}
+
+.myPageGhostButton {
+    border: 1px solid var(--c-border);
+    border-radius: var(--r-md);
+    padding: 10px 14px;
+    background: var(--c-card);
+    color: var(--c-sub);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.myPagePrimaryButton:disabled {
+    opacity: .6;
+    cursor: default;
+}
+
+.myPageEmptyState {
+    border: 1px dashed var(--c-border);
+    border-radius: var(--r-lg);
+    padding: 24px;
+    text-align: center;
+    color: var(--c-sub);
+    font-size: 13px;
+}
+
+@media (max-width: 768px) {
+    .myPageMainCard {
+        padding: 18px;
+    }
+
+    .myPageLayout {
+        grid-template-columns: 1fr;
+    }
+
+    .myPageFieldGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .myPageHeader {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}
+
+
+
