@@ -3,10 +3,12 @@
 # 이 파일은 순수하게 AI API 통신만 담당 — 라우트 코드와 분리해 유지보수 편의성 향상
 
 import os  # os : 환경변수(ANTHROPIC_API_KEY)를 읽기 위한 Python 표준 모듈
+from typing import cast
 
 # anthropic : Anthropic 공식 Python SDK — Claude API를 쉽게 사용하도록 도와주는 라이브러리
 # 'pip install anthropic' 으로 설치
 import anthropic
+from anthropic.types import MessageParam
 
 
 def analyze_workout(session_data):
@@ -138,9 +140,9 @@ def analyze_workout(session_data):
             # messages : Claude에게 보내는 대화 내용
             # role='user' : 사용자가 보내는 메시지
             # content : 실제 메시지 텍스트
-            messages=[
+            messages=cast(list[MessageParam], [
                 {'role': 'user', 'content': prompt}
-            ]
+            ])
         )
 
         # ─────────────────────────────────────────────

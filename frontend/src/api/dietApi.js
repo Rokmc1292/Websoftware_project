@@ -32,3 +32,17 @@ export const updateDietGoals = async (goals) => {
     return response.data;
 };
 
+export const analyzeDietImage = async (file) => {
+    const formData = new FormData();
+    formData.append('image', file);
+    const response = await apiClient.post('/diet/ai/analyze-image', formData, {
+        headers: {'Content-Type': 'multipart/form-data'},
+    });
+    return response.data;
+};
+
+export const getDietCoachFeedback = async (payload) => {
+    const response = await apiClient.post('/diet/ai/coach', payload);
+    return response.data;
+};
+

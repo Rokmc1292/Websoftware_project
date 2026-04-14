@@ -8,6 +8,11 @@ from app.services.sleep_coach_service import generate_sleep_coach_feedback
 
 sleep_bp = Blueprint("sleep", __name__)
 
+# Temporary policy (Option B):
+# - 현재 sleep 라우트/모델은 사용자 스코프(FK/JWT 기반 필터)를 완전 적용하지 않은 상태다.
+# - 계정 삭제 시 수면 데이터의 사용자별 완전 정리는 별도 마이그레이션 이슈로 진행한다.
+# - 본 정책은 수면 도메인 사용자 스코프 개편 완료 시 제거/대체한다.
+
 
 def _validate_required_keys(payload, required_keys):
     for key in required_keys:

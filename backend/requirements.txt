@@ -1,0 +1,15 @@
+# requirements.txt — 이 프로젝트에 필요한 Python 패키지 목록
+# 설치 명령어: pip install -r requirements.txt
+
+flask==3.0.3
+flask-sqlalchemy==3.1.1
+flask-migrate==4.0.7
+flask-jwt-extended==4.6.0
+flask-cors==4.0.1
+pymysql==1.1.1
+cryptography==42.0.8
+python-dotenv==1.0.1
+anthropic==0.28.0
+bcrypt==4.1.3
+google-generativeai==0.8.5
+requests==2.32.3

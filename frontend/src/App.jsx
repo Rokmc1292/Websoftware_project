@@ -28,12 +28,12 @@ import AppLayout from './components/AppLayout.jsx';
 import LoginPage from './pages/auth/LoginPage.jsx'; // /login  → 로그인 화면
 import SignupPage from './pages/auth/SignupPage.jsx'; // /signup → 회원가입 화면
 
-
 // ── 기능 페이지 (AppLayout 안에서 렌더링됨) ──
 import DietPage from './pages/diet/DietPage.jsx'; // /diet    → 식단관리
 import SleepPage from './pages/sleep/SleepPage.jsx'; // /sleep   → 수면관리
 import StatsPage from './pages/stats/StatsPage.jsx'; // /stats   → 통계·분석
 import WorkoutPage from './pages/workout/WorkoutPage.jsx'; // /workout → 운동루틴
+import MyPage from './pages/mypage/MyPage.jsx'; // /mypage  → 마이페이지
 
 import IntroPage from './pages/intro/IntroPage.jsx'; // 인트로 화면
 
@@ -65,6 +65,9 @@ function App() {
 
           {/* /stats 접속 시 → AppLayout(헤더) + StatsPage 렌더링 */}
           <Route path="/stats"   element={<StatsPage />}   />
+
+          {/* /mypage 접속 시 → AppLayout(헤더) + MyPage 렌더링 */}
+          <Route path="/mypage"  element={<MyPage />}      />
 
         </Route>
 
