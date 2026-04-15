@@ -27,8 +27,12 @@ from .. import db
 # WorkoutSession, WorkoutSet : DB 모델 클래스
 from ..models.workout import WorkoutSession, WorkoutSet
 
-# analyze_workout : Claude AI 분석 함수 (services/ai_coach.py에 정의)
-from ..services.ai_coach import analyze_workout
+# analyze_workout : Claude AI 세션 분석 함수 (services/ai_coach.py에 정의)
+# generate_coach_advice : 개인 맞춤 AI 코치 조언 생성 함수
+from ..services.ai_coach import analyze_workout, generate_coach_advice
+
+# User 모델 — AI 분석 시 사용자 프로필(MyPage 정보)을 함께 조회하기 위해 임포트
+from ..models.user import User
 
 # date : 날짜 전용 클래스 (datetime.date) — session_date 저장에 사용
 from datetime import date
@@ -323,9 +327,14 @@ def analyze_session(session_id):
         # to_dict()는 세션 정보 + 세트 목록을 포함한 딕셔너리를 반환
         session_data = session.to_dict()
 
-        # analyze_workout() : Claude AI에게 운동 데이터를 보내고 분석 결과를 받음
-        # services/ai_coach.py에 정의된 함수
-        feedback = analyze_workout(session_data)
+        # ── MyPage 개인 맞춤 정보 조회 ──
+        # 사용자의 신체 정보(키, 체중, 골격근량, 체지방량)와 개인 메모를 AI 분석에 활용
+        user = User.query.get(current_user_id)
+        user_profile = user.to_dict() if user else None
+
+        # analyze_workout() : Claude AI에게 운동 데이터 + 사용자 프로필을 보내고 분석 결과를 받음
+        # user_profile이 있으면 개인 맞춤 피드백, 없으면 일반 피드백 생성
+        feedback = analyze_workout(session_data, user_profile)
 
         # 분석 결과를 DB의 ai_feedback 컬럼에 저장
         session.ai_feedback = feedback
@@ -554,3 +563,57 @@ def get_favorites():
     )
 
     return jsonify({'sessions': [s.to_dict() for s in sessions]}), 200
+
+
+# =============================================================================
+# 맞춤형 AI 코치 조언 API
+# GET /api/workout/coach
+# =============================================================================
+@workout_bp.route('/coach', methods=['GET'])
+@jwt_required()
+def get_coach_advice():
+    """
+    현재 사용자의 MyPage 개인 맞춤 정보(키, 체중, 골격근량, 체지방량, 개인 메모)와
+    최근 운동 이력을 바탕으로 맞춤형 AI 코치 조언을 반환
+
+    성공 응답(200): { "advice": "맞춤 코칭 텍스트...", "has_profile": true/false }
+    """
+    current_user_id = _get_current_user_id()
+
+    # ── 사용자 프로필 조회 (MyPage 데이터) ──
+    # User 모델의 to_dict()에 height_cm, weight_kg, skeletal_muscle_kg,
+    # body_fat_kg, profile_note가 포함되어 있음
+    user = User.query.get(current_user_id)
+    if not user:
+        return jsonify({'message': '사용자 정보를 찾을 수 없습니다.'}), 404
+
+    user_profile = user.to_dict()
+
+    # ── 최근 운동 세션 조회 (최근 10개) ──
+    # AI 코치가 운동 패턴을 파악할 수 있도록 최근 기록을 제공
+    recent_sessions = (
+        WorkoutSession.query
+        .filter_by(user_id=current_user_id)
+        .order_by(WorkoutSession.session_date.desc())
+        .limit(10)
+        .all()
+    )
+
+    recent_sessions_data = [s.to_dict() for s in recent_sessions]
+
+    # ── AI 코치 조언 생성 ──
+    advice = generate_coach_advice(user_profile, recent_sessions_data)
+
+    # 개인 맞춤 정보가 하나라도 입력된 경우 has_profile=True — 프론트에서 안내 메시지에 활용
+    has_profile = any([
+        user_profile.get('height_cm') is not None,
+        user_profile.get('weight_kg') is not None,
+        user_profile.get('skeletal_muscle_kg') is not None,
+        user_profile.get('body_fat_kg') is not None,
+        bool((user_profile.get('profile_note') or '').strip()),
+    ])
+
+    return jsonify({
+        'advice': advice,
+        'has_profile': has_profile,
+    }), 200

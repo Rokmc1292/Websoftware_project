@@ -155,3 +155,16 @@ export const getExerciseBest = async (exerciseName) => {
     const response = await apiClient.get(`/workout/exercises/${encodeURIComponent(exerciseName)}/best`);
     return response.data;
 };
+
+
+// ─────────────────────────────────────────────
+// 맞춤형 AI 코치 조언 조회
+// GET /api/workout/coach
+// ─────────────────────────────────────────────
+// MyPage에 저장된 개인 맞춤 정보(키, 체중, 골격근량, 체지방량, 개인 메모)와
+// 최근 운동 이력을 바탕으로 Claude AI가 생성한 맞춤 코칭 조언을 반환
+// 반환값: { advice: "코칭 조언 텍스트...", has_profile: true/false }
+export const getCoachAdvice = async () => {
+    const response = await apiClient.get('/workout/coach');
+    return response.data;
+};

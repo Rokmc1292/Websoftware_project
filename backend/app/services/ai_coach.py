@@ -9,9 +9,62 @@ from flask import current_app
 import anthropic
 
 
-def analyze_workout(session_data):
+def _get_client_and_model():
+    """
+    환경변수에서 API 키와 모델명을 읽어 Anthropic 클라이언트를 반환
+    반환값: (client, model) 또는 오류 시 (None, 오류_메시지_문자열)
+    """
+    api_key = (current_app.config.get('TAE_ANTHROPIC_API_KEY') or '').strip()
+    if not api_key:
+        return None, 'AI 분석을 사용하려면 TAE_ANTHROPIC_API_KEY 환경변수를 설정해주세요.'
+
+    model = (current_app.config.get('TAE_ANTHROPIC_MODEL') or '').strip()
+    if not model:
+        return None, 'AI 분석을 사용하려면 TAE_ANTHROPIC_MODEL 환경변수를 설정해주세요.'
+
+    client = anthropic.Anthropic(api_key=api_key)
+    return client, model
+
+
+def _build_profile_context(user_profile):
+    """
+    사용자 프로필 딕셔너리를 프롬프트용 텍스트로 변환
+    user_profile: {username, height_cm, weight_kg, skeletal_muscle_kg, body_fat_kg, profile_note, ...}
+    반환값: 프롬프트에 삽입할 프로필 문자열 (없으면 빈 문자열)
+    """
+    if not user_profile:
+        return ''
+
+    parts = []
+
+    # 사용자 닉네임
+    if user_profile.get('username'):
+        parts.append(f"이름(닉네임): {user_profile['username']}")
+
+    # 신체 계측 정보 — MyPage에서 입력한 수치
+    if user_profile.get('height_cm') is not None:
+        parts.append(f"키: {user_profile['height_cm']}cm")
+    if user_profile.get('weight_kg') is not None:
+        parts.append(f"체중: {user_profile['weight_kg']}kg")
+    if user_profile.get('skeletal_muscle_kg') is not None:
+        parts.append(f"골격근량: {user_profile['skeletal_muscle_kg']}kg")
+    if user_profile.get('body_fat_kg') is not None:
+        parts.append(f"체지방량: {user_profile['body_fat_kg']}kg")
+
+    # 개인 맞춤 메모 — MyPage "개인 맞춤 정보" 란에 사용자가 직접 작성한 내용
+    if user_profile.get('profile_note') and user_profile['profile_note'].strip():
+        parts.append(f"개인 메모: {user_profile['profile_note'].strip()}")
+
+    if not parts:
+        return ''
+
+    return '\n\n[사용자 신체 정보 — 아래 정보를 바탕으로 개인 맞춤 피드백을 제공해주세요]\n' + '\n'.join(parts)
+
+
+def analyze_workout(session_data, user_profile=None):
     """
     운동 세션 데이터를 Claude API에 전달해 분석 결과 텍스트를 반환
+    MyPage에서 저장한 개인 맞춤정보(신체 계측값, 메모)를 함께 전달해 맞춤 피드백을 생성
 
     매개변수 session_data (딕셔너리):
         {
@@ -30,6 +83,16 @@ def analyze_workout(session_data):
             ]
         }
 
+    매개변수 user_profile (딕셔너리, 선택):
+        {
+            'username': '홍길동',
+            'height_cm': 175.0,
+            'weight_kg': 70.0,
+            'skeletal_muscle_kg': 32.0,
+            'body_fat_kg': 14.0,
+            'profile_note': '무릎이 약해서 스쿼트 시 주의 필요'
+        }
+
     반환값: Claude AI의 운동 분석 텍스트 (문자열)
     오류 발생 시: 오류 메시지 문자열 반환 (예외를 밖으로 전파하지 않음)
     """
@@ -39,19 +102,10 @@ def analyze_workout(session_data):
         # 1단계: Anthropic 클라이언트 생성
         # ─────────────────────────────────────────────
 
-        api_key = (current_app.config.get('TAE_ANTHROPIC_API_KEY') or '').strip()
-
-        # API 키가 없으면 Claude를 호출할 수 없으므로 즉시 안내 메시지 반환
-        if not api_key:
-            # TAE_ANTHROPIC_API_KEY 환경변수 미설정 시 사용자에게 안내
-            return 'AI 분석을 사용하려면 TAE_ANTHROPIC_API_KEY 환경변수를 설정해주세요.'
-
-        model = (current_app.config.get('TAE_ANTHROPIC_MODEL') or '').strip()
-        if not model:
-            return 'AI 분석을 사용하려면 TAE_ANTHROPIC_MODEL 환경변수를 설정해주세요.'
-
-        # anthropic.Anthropic() : Anthropic API와 통신하는 클라이언트 객체 생성
-        client = anthropic.Anthropic(api_key=api_key)
+        client, model = _get_client_and_model()
+        if client is None:
+            # model 변수에 오류 메시지가 담겨있음
+            return model
 
         # ─────────────────────────────────────────────
         # 2단계: 운동 데이터를 읽기 쉬운 텍스트로 변환
@@ -59,57 +113,50 @@ def analyze_workout(session_data):
 
         # session_data의 sets 리스트에서 종목별로 세트를 묶음
         # exercise_groups = { '벤치프레스': [set1, set2], '스쿼트': [set1], ... }
-        exercise_groups = {}  # 빈 딕셔너리로 시작
+        exercise_groups = {}
 
-        # session_data.get('sets', []) : 'sets' 키가 없으면 빈 리스트 반환 (오류 방지)
         for s in session_data.get('sets', []):
-            name = s['exercise_name']  # 종목 이름 추출
-
-            # 이 종목이 딕셔너리에 없으면 빈 리스트로 초기화
+            name = s['exercise_name']
             if name not in exercise_groups:
                 exercise_groups[name] = []
-
-            # 해당 종목의 세트 목록에 추가
             exercise_groups[name].append(s)
 
         # 종목별로 세트 정보를 읽기 쉬운 텍스트로 조합
-        exercises_text = ''  # 최종 운동 목록 텍스트
+        exercises_text = ''
 
         for exercise_name, sets in exercise_groups.items():
-            # 각 종목의 세트 상세를 문자열 리스트로 만들어 나중에 ', '로 합침
             set_details = []
 
             for s in sets:
                 if s.get('weight_kg') and s.get('reps'):
                     # 중량 + 횟수가 모두 있는 경우 (일반적인 웨이트 트레이닝)
-                    # 예: "1세트 60.0kg×10회"
                     set_details.append(
                         f"{s['set_number']}세트 {s['weight_kg']}kg×{s['reps']}회"
                     )
                 elif s.get('reps'):
-                    # 횟수는 있지만 중량이 없는 경우 (맨몸 운동: 턱걸이, 푸시업 등)
-                    # 예: "1세트 10회(맨몸)"
+                    # 횟수는 있지만 중량이 없는 경우 (맨몸 운동)
                     set_details.append(
                         f"{s['set_number']}세트 {s['reps']}회(맨몸)"
                     )
                 elif s.get('duration_sec'):
                     # 시간 기반 운동인 경우 (플랭크, 월시트 등)
-                    # 예: "1세트 60초"
                     set_details.append(
                         f"{s['set_number']}세트 {s['duration_sec']}초"
                     )
 
-            # 종목 이름과 세트 상세를 합쳐서 exercises_text에 추가
-            # 예: "\n- 벤치프레스: 1세트 60.0kg×10회, 2세트 65.0kg×8회"
             exercises_text += f"\n- {exercise_name}: {', '.join(set_details)}"
 
         # ─────────────────────────────────────────────
-        # 3단계: Claude에게 보낼 프롬프트(지시문) 작성
+        # 3단계: 개인 맞춤 프로필 컨텍스트 생성 (MyPage 데이터 활용)
         # ─────────────────────────────────────────────
 
-        # 프롬프트 : AI에게 무엇을 해달라고 요청하는 텍스트
-        # 아래 format에 실제 데이터를 채워 넣음 (f-string 사용)
-        prompt = f"""아래는 오늘의 운동 기록입니다. 이 기록을 분석하고 한국어로 피드백을 주세요.
+        profile_context = _build_profile_context(user_profile)
+
+        # ─────────────────────────────────────────────
+        # 4단계: Claude에게 보낼 프롬프트(지시문) 작성
+        # ─────────────────────────────────────────────
+
+        prompt = f"""아래는 오늘의 운동 기록입니다. 이 기록을 분석하고 한국어로 피드백을 주세요.{profile_context}
 
 운동 날짜: {session_data.get('session_date', '오늘')}
 세션 제목: {session_data.get('title') or '무제'}
@@ -117,48 +164,124 @@ def analyze_workout(session_data):
 운동 목록:{exercises_text if exercises_text else ' (기록 없음)'}
 
 아래 형식으로 간결하게 작성해주세요:
-1. 오늘 운동 총평 (1~2문장)
+1. 오늘 운동 총평 (1~2문장, 사용자 신체 정보가 있다면 체성분·체중 기준으로 맞춤 평가)
 2. 잘한 점 또는 개선할 점 (bullet point 2~3개, 각 줄 앞에 • 기호 사용)
-3. 다음 운동을 위한 구체적인 조언 (1문장)
+3. 다음 운동을 위한 구체적인 조언 (1문장, 신체 정보·개인 메모가 있다면 반영)
 
 500자 이내로 작성해주세요."""
 
         # ─────────────────────────────────────────────
-        # 4단계: Claude API 호출
+        # 5단계: Claude API 호출
         # ─────────────────────────────────────────────
 
-        # client.messages.create() : Claude API에 메시지를 보내고 응답을 받는 함수
         message = client.messages.create(
-                            # model : 사용할 Claude 모델 이름 (TAE_ANTHROPIC_MODEL에서만 읽음)
-                            model=model,
-
-            # max_tokens : 응답의 최대 토큰 수 (대략 1토큰 ≈ 0.75단어)
-            # 600토큰이면 약 450자 분량 — 운동 피드백에 충분한 길이
+            model=model,
             max_tokens=600,
-
-            # messages : Claude에게 보내는 대화 내용
-            # role='user' : 사용자가 보내는 메시지
-            # content : 실제 메시지 텍스트
             messages=[{'role': 'user', 'content': prompt}]  # type: ignore[arg-type]
         )
 
         # ─────────────────────────────────────────────
-        # 5단계: 응답에서 텍스트만 추출해 반환
+        # 6단계: 응답에서 텍스트만 추출해 반환
         # ─────────────────────────────────────────────
 
-        # message.content : 응답 콘텐츠 블록의 리스트
-        # [0] : 첫 번째 (보통 유일한) 블록
-        # .text : 텍스트 블록의 실제 텍스트 내용
         return message.content[0].text
 
     except anthropic.AuthenticationError:
-        # AuthenticationError : API 키가 잘못되었을 때 발생
         return 'API 키가 올바르지 않습니다. TAE_ANTHROPIC_API_KEY를 확인해주세요.'
 
     except anthropic.RateLimitError:
-        # RateLimitError : API 호출 한도를 초과했을 때 발생
         return 'API 호출 한도를 초과했습니다. 잠시 후 다시 시도해주세요.'
 
     except Exception as error:
-        # 그 외 예상치 못한 모든 오류 — 오류 메시지를 반환해 서버가 멈추지 않도록 처리
         return f'AI 분석 중 오류가 발생했습니다: {str(error)}'
+
+
+def generate_coach_advice(user_profile, recent_sessions):
+    """
+    사용자 프로필과 최근 운동 기록을 바탕으로 맞춤형 AI 코치 조언을 생성
+    MyPage에 저장된 신체 정보(키, 체중, 골격근량, 체지방량, 개인 메모)를 활용
+
+    매개변수 user_profile (딕셔너리):
+        {
+            'username': '홍길동',
+            'height_cm': 175.0,
+            'weight_kg': 70.0,
+            'skeletal_muscle_kg': 32.0,
+            'body_fat_kg': 14.0,
+            'profile_note': '무릎이 약해서 스쿼트 시 주의 필요'
+        }
+
+    매개변수 recent_sessions (리스트): 최근 운동 세션 딕셔너리 목록 (최대 10개)
+
+    반환값: Claude AI의 맞춤 코칭 조언 텍스트 (문자열)
+    """
+
+    try:
+        # ─────────────────────────────────────────────
+        # 1단계: Anthropic 클라이언트 생성
+        # ─────────────────────────────────────────────
+
+        client, model = _get_client_and_model()
+        if client is None:
+            return model
+
+        # ─────────────────────────────────────────────
+        # 2단계: 개인 프로필 컨텍스트 구성 (MyPage 데이터)
+        # ─────────────────────────────────────────────
+
+        profile_context = _build_profile_context(user_profile)
+
+        # ─────────────────────────────────────────────
+        # 3단계: 최근 운동 이력 텍스트 구성
+        # ─────────────────────────────────────────────
+
+        if recent_sessions:
+            sessions_text = ''
+            for session in recent_sessions[:7]:  # 최근 7개 세션만 사용
+                # 세션에서 종목 이름 목록 추출 (중복 제거)
+                exercise_names = list(dict.fromkeys(
+                    s['exercise_name'] for s in session.get('sets', [])
+                ))
+                date_str = session.get('session_date', '날짜 미상')
+                title_str = session.get('title') or '운동'
+                names_str = ', '.join(exercise_names) if exercise_names else '기록 없음'
+                sessions_text += f"\n- {date_str} [{title_str}]: {names_str}"
+        else:
+            sessions_text = '\n- 최근 운동 기록 없음'
+
+        # ─────────────────────────────────────────────
+        # 4단계: 맞춤 코칭 프롬프트 작성
+        # ─────────────────────────────────────────────
+
+        prompt = f"""당신은 전문 퍼스널 트레이너 AI 코치입니다. 아래 사용자 정보와 최근 운동 이력을 바탕으로 맞춤형 운동 코칭 조언을 한국어로 작성해주세요.{profile_context}
+
+[최근 운동 이력]{sessions_text}
+
+아래 형식으로 작성해주세요:
+1. 현재 체성분 분석 및 운동 목표 제안 (신체 정보가 있을 경우 BMI·근육량·체지방률 기준 평가 포함, 1~2문장)
+2. 최근 운동 패턴 평가 및 개선점 (bullet point 2~3개, 각 줄 앞에 • 기호 사용)
+3. 이번 주 추천 운동 계획 (bullet point 2~3개, 각 줄 앞에 → 기호 사용)
+4. 개인 메모 반영 조언 (개인 메모가 있을 경우 해당 내용을 반영한 1문장 조언, 없으면 생략)
+
+600자 이내로 작성해주세요."""
+
+        # ─────────────────────────────────────────────
+        # 5단계: Claude API 호출
+        # ─────────────────────────────────────────────
+
+        message = client.messages.create(
+            model=model,
+            max_tokens=700,
+            messages=[{'role': 'user', 'content': prompt}]  # type: ignore[arg-type]
+        )
+
+        return message.content[0].text
+
+    except anthropic.AuthenticationError:
+        return 'API 키가 올바르지 않습니다. TAE_ANTHROPIC_API_KEY를 확인해주세요.'
+
+    except anthropic.RateLimitError:
+        return 'API 호출 한도를 초과했습니다. 잠시 후 다시 시도해주세요.'
+
+    except Exception as error:
+        return f'AI 코치 조언 생성 중 오류가 발생했습니다: {str(error)}'
