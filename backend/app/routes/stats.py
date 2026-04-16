@@ -30,7 +30,7 @@ from .. import db
 
 # 각 기능의 DB 모델 클래스를 불러옴
 from ..models.workout import WorkoutSession  # 운동 세션 모델
-from ..models.diet import DietEntry          # 식단 기록 모델
+from ..models.diet import DietEntry, DietItem  # 식단 기록 모델 (DietItem: 칼로리 합산용)
 from ..models.sleep_record import SleepRecord  # 수면 기록 모델
 
 # ─────────────────────────────────────────────
@@ -295,4 +295,131 @@ def get_daily_stats():
 
         # 수면 기록 — 하나이거나 없음 (없으면 null)
         'sleep': sleep_record.to_dict() if sleep_record else None,
+    }), 200
+
+
+# =============================================================================
+# 주간 그래프 데이터 조회 API
+# GET /api/stats/weekly?date=YYYY-MM-DD
+# =============================================================================
+# 달력에서 날짜 클릭 시 그 날짜가 속한 주(일요일~토요일)의 운동/식단/수면 데이터 반환
+# 반환 예시:
+# {
+#   "week_start": "2026-04-13", "week_end": "2026-04-19",
+#   "days": [
+#     { "date": "2026-04-13", "weekday": "일", "workout_volume": 3200.0,
+#       "diet_calories": 2100, "sleep_hours": 7.5 },
+#     ...
+#   ]
+# }
+@stats_bp.route('/weekly', methods=['GET'])
+@jwt_required()
+def get_weekly_stats():
+    """
+    주어진 날짜가 속한 주(일요일~토요일)의 날짜별 운동 볼륨·식단 칼로리·수면 시간을 반환
+    date 파라미터 없으면 오늘 날짜 기준으로 동작
+    """
+    user_id = _get_current_user_id()
+
+    # ── 날짜 파라미터 읽기 ──
+    date_str = request.args.get('date')
+    if date_str:
+        try:
+            target_date = date.fromisoformat(date_str)
+        except ValueError:
+            return jsonify({'success': False, 'message': '날짜 형식이 올바르지 않습니다.'}), 400
+    else:
+        target_date = date.today()
+
+    # ── 해당 날짜가 속한 주의 일요일~토요일 계산 ──
+    # Python weekday(): 0=월요일, 6=일요일
+    # 일요일 기준 오프셋: 일=0, 월=1, 화=2, ..., 토=6
+    days_since_sunday = (target_date.weekday() + 1) % 7
+    week_start = target_date - timedelta(days=days_since_sunday)  # 이 주의 일요일
+    week_end   = week_start + timedelta(days=6)                   # 이 주의 토요일
+
+    # ── 7일 날짜 리스트 (일요일부터 시작) ──
+    week_dates = [week_start + timedelta(days=i) for i in range(7)]
+
+    # ── 운동 볼륨(kg × 횟수 합계) 날짜별 계산 ──
+    # WorkoutSession → WorkoutSet을 순회해 Python에서 직접 합산 (DB 함수 의존성 최소화)
+    workout_volume = {}
+    try:
+        sessions = (
+            WorkoutSession.query
+            .filter(
+                WorkoutSession.user_id == user_id,
+                WorkoutSession.session_date.between(week_start, week_end),
+            )
+            .all()
+        )
+        for s in sessions:
+            d = s.session_date
+            if d not in workout_volume:
+                workout_volume[d] = 0.0
+            for ws in s.sets:
+                # 중량과 횟수가 모두 있는 세트만 볼륨 계산
+                if ws.weight_kg is not None and ws.reps is not None:
+                    workout_volume[d] += float(ws.weight_kg) * int(ws.reps)
+    except Exception as e:
+        print(f'[stats/weekly] 운동 조회 오류: {e}')
+
+    # ── 식단 칼로리(kcal) 날짜별 합계 ──
+    # DietEntry → DietItem.calories 합산
+    diet_calories = {}
+    try:
+        entries = (
+            DietEntry.query
+            .filter(
+                DietEntry.user_id == user_id,
+                func.date(DietEntry.recorded_at) >= week_start,
+                func.date(DietEntry.recorded_at) <= week_end,
+            )
+            .all()
+        )
+        for entry in entries:
+            d = entry.recorded_at.date()  # DateTime → date 변환
+            if d not in diet_calories:
+                diet_calories[d] = 0
+            for item in entry.items:
+                diet_calories[d] += int(item.calories or 0)
+    except Exception as e:
+        print(f'[stats/weekly] 식단 조회 오류: {e}')
+
+    # ── 수면 시간(시간 단위) 날짜별 조회 ──
+    sleep_hours_map = {}
+    try:
+        sleep_records = (
+            SleepRecord.query
+            .filter(
+                SleepRecord.user_id == user_id,
+                SleepRecord.record_date.between(week_start, week_end),
+            )
+            .all()
+        )
+        for sr in sleep_records:
+            sleep_hours_map[sr.record_date] = float(sr.sleep_hours or 0)
+    except Exception as e:
+        print(f'[stats/weekly] 수면 조회 오류: {e}')
+
+    # ── 7일 응답 데이터 구성 ──
+    weekday_labels = ['일', '월', '화', '수', '목', '금', '토']
+
+    days_result = []
+    for d in week_dates:
+        # Python weekday() 0=월~6=일 → 일요일 기준 인덱스 변환
+        kr_idx = (d.weekday() + 1) % 7  # 일=0, 월=1, ..., 토=6
+        days_result.append({
+            'date':           d.isoformat(),
+            'weekday':        weekday_labels[kr_idx],
+            'workout_volume': round(workout_volume.get(d, 0.0), 1),
+            'diet_calories':  diet_calories.get(d, 0),
+            'sleep_hours':    sleep_hours_map.get(d, 0),
+        })
+
+    return jsonify({
+        'success':    True,
+        'week_start': week_start.isoformat(),
+        'week_end':   week_end.isoformat(),
+        'days':       days_result,
     }), 200

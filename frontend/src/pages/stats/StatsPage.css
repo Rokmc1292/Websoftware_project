@@ -112,23 +112,24 @@
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr); /* 7열 균등 분할 */
-  gap: 4px;                      /* 셀 사이 간격 */
+  gap: 3px;                      /* 셀 사이 간격 */
 }
 
 /* 개별 날짜 셀 */
 .calendar-day {
   position: relative;            /* 내부 점(dot) 배치를 위한 기준점 */
-  aspect-ratio: 1;               /* 정사각형 비율 유지 */
+  aspect-ratio: 1;               /* 정사각형 비율 유지 — 너비=높이 */
   display: flex;
   flex-direction: column;        /* 날짜 숫자와 점을 세로로 나열 */
   align-items: center;
   justify-content: center;
-  border-radius: 10px;           /* 모서리 둥글게 */
+  border-radius: 8px;            /* 모서리 둥글게 */
   cursor: pointer;               /* 클릭 가능한 손 커서 */
   transition: background 0.15s;  /* 호버 시 배경색 부드럽게 변환 */
-  gap: 3px;                      /* 숫자와 점 사이 간격 */
-  min-height: 48px;              /* 최소 높이 */
-  padding: 4px 2px;              /* 내부 여백 */
+  gap: 2px;                      /* 숫자와 점 사이 간격 */
+  padding: 2px;                  /* 내부 여백 */
+  overflow: hidden;              /* 셀 밖으로 내용 잘라냄 */
+  box-sizing: border-box;
 }
 
 /* 날짜 셀 기본 호버 효과 */
@@ -165,7 +166,7 @@
 
 /* 날짜 숫자 텍스트 */
 .calendar-day-number {
-  font-size: 13px;               /* 글씨 크기 */
+  font-size: 12px;               /* 글씨 크기 */
   font-weight: 600;              /* 굵게 */
   color: var(--stats-text);
   line-height: 1;                /* 행간 최소화 */
@@ -661,4 +662,239 @@
   border: none;
   border-top: 1px solid var(--stats-border);
   margin: 16px 0 12px;
+}
+
+/* ─────────────────────────────────────────────
+   2열 레이아웃: 왼쪽 달력 + 오른쪽 주간 그래프
+   ───────────────────────────────────────────── */
+
+/* 전체 2열 래퍼 */
+.stats-layout {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;         /* 양쪽 열이 각자 높이만큼만 차지 */
+}
+
+/* 왼쪽: 달력 열 — 고정 너비 */
+.stats-calendar-col {
+  flex-shrink: 0;
+  width: 340px;
+}
+
+/* 오른쪽: 주간 그래프 열 — 남은 공간 전부 */
+.stats-weekly-col {
+  flex: 1;
+  min-width: 0;                    /* flex 오버플로 방지 */
+}
+
+/* 달력 카드 — 레이아웃 안에서는 하단 여백 제거 */
+.stats-calendar-col .stats-calendar-card {
+  margin-bottom: 0;
+}
+
+/* ─────────────────────────────────────────────
+   오른쪽 주간 그래프 카드
+   ───────────────────────────────────────────── */
+
+/* 주간 그래프를 담는 카드 박스 */
+.stats-weekly-card {
+  background: var(--stats-card);
+  border: 1px solid var(--stats-border);
+  border-radius: 16px;
+  padding: 24px;
+}
+
+/* 카드 헤더 영역 (제목 + 힌트) */
+.weekly-card-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--stats-border);
+}
+
+/* 카드 제목 */
+.weekly-card-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--stats-text);
+  letter-spacing: -0.3px;
+}
+
+/* 안내 문구 */
+.weekly-card-hint {
+  font-size: 12px;
+  color: var(--stats-muted);
+}
+
+/* 주간 범위 레이블 (예: 2026년 04월 13일 ~ 19일) */
+.week-range-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--stats-sub);
+  margin-bottom: 20px;
+}
+
+/* ─────────────────────────────────────────────
+   막대 그래프 컴포넌트 (BarChart)
+   ───────────────────────────────────────────── */
+
+/* 차트 하나를 감싸는 박스 */
+.bar-chart {
+  padding: 8px 0;
+}
+
+/* 차트 헤더: 아이콘 + 제목 + 단위 */
+.bar-chart-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+/* 아이콘 */
+.bar-chart-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+/* 차트 제목 */
+.bar-chart-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--stats-text);
+}
+
+/* 단위 레이블 (예: (kg), (kcal)) */
+.bar-chart-unit {
+  font-size: 12px;
+  color: var(--stats-muted);
+  margin-left: 2px;
+}
+
+/* 막대 영역: 7개 열을 가로로 나열 */
+.bar-chart-body {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+}
+
+/* 개별 막대 열: 값 레이블 + 트랙 + 요일 레이블 세로 배치 */
+.bar-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+/* 오늘 막대 열 — 배경 트랙 색상 변경으로 강조 */
+.today-col .bar-track {
+  background: color-mix(in srgb, var(--stats-primary) 12%, var(--stats-card));
+  border: 1px solid color-mix(in srgb, var(--stats-primary) 22%, var(--stats-border));
+}
+
+/* 막대 위 값 레이블 (높이 고정으로 막대 정렬 유지) */
+.bar-value-label {
+  font-size: 10px;
+  color: var(--stats-sub);
+  text-align: center;
+  height: 14px;
+  line-height: 14px;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+/* 막대 트랙: 회색 배경 기둥 */
+.bar-track {
+  width: 100%;
+  height: 110px;
+  background: var(--stats-bg-soft);
+  border: 1px solid var(--stats-border);
+  border-radius: 6px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* 막대 채움: 컬러 영역, 아래에서 위로 */
+.bar-fill {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  border-radius: 4px 4px 0 0;
+  transition: height 0.4s ease;
+}
+
+/* 요일 레이블 */
+.bar-day-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--stats-muted);
+  text-align: center;
+}
+
+/* 오늘 요일 레이블 강조 */
+.bar-day-label.today-label {
+  color: var(--stats-primary);
+  font-weight: 800;
+}
+
+/* 차트 사이 구분선 */
+.bar-chart-divider {
+  border: none;
+  border-top: 1px solid var(--stats-border);
+  margin: 12px 0;
+}
+
+/* ─────────────────────────────────────────────
+   주간 그래프 상태 표시 (로딩 / 빈 상태)
+   ───────────────────────────────────────────── */
+
+/* 로딩 중 안내 — spinner + 텍스트 세로 중앙 정렬 */
+.weekly-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 0;
+  color: var(--stats-muted);
+  font-size: 14px;
+  gap: 12px;
+}
+
+/* 빈 상태 안내 텍스트 */
+.weekly-empty {
+  padding: 48px 16px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--stats-muted);
+  line-height: 1.7;
+}
+
+/* ─────────────────────────────────────────────
+   선택된 주의 달력 셀 하이라이트
+   ───────────────────────────────────────────── */
+
+/* 선택된 날짜와 같은 주에 속하는 셀 (선택된 날 자체 제외) */
+.calendar-day.in-selected-week {
+  background: color-mix(in srgb, var(--stats-primary) 9%, var(--stats-card));
+}
+
+.calendar-day.in-selected-week:hover {
+  background: color-mix(in srgb, var(--stats-primary) 16%, var(--stats-card));
+}
+
+/* ─────────────────────────────────────────────
+   반응형: 좁은 화면에서 세로 스택
+   ───────────────────────────────────────────── */
+
+@media (max-width: 800px) {
+  .stats-layout {
+    flex-direction: column;
+  }
+
+  .stats-calendar-col {
+    width: 100%;
+  }
 }
