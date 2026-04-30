@@ -67,3 +67,26 @@ export const getDailyStats = async (dateStr) => {
 
     return response.data;
 };
+
+
+// ─────────────────────────────────────────────
+// 주간 그래프 데이터 조회
+// GET /api/stats/weekly?date=YYYY-MM-DD
+// ─────────────────────────────────────────────
+// 주어진 날짜가 속한 주(일요일~토요일)의 날짜별 운동 볼륨·식단 칼로리·수면 시간 반환
+// 달력에서 날짜 클릭 시 오른쪽 그래프 패널을 업데이트하는 데 사용
+//
+// 반환값 예시:
+// {
+//   week_start: "2026-04-13", week_end: "2026-04-19",
+//   days: [
+//     { date: "2026-04-13", weekday: "일", workout_volume: 3200, diet_calories: 2100, sleep_hours: 7.5 },
+//     ...
+//   ]
+// }
+export const getWeeklyStats = async (dateStr) => {
+    const response = await apiClient.get('/stats/weekly', {
+        params: { date: dateStr },
+    });
+    return response.data;
+};
