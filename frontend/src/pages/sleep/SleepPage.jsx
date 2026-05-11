@@ -761,7 +761,6 @@ export default function SleepPage() {
   );
   const [sleepRecords, setSleepRecords] = useState([]);
   const [aiCoachComment, setAiCoachComment] = useState("");
-  const [aiCoachData, setAiCoachData] = useState(null);
   const [hasAnalyzed, setHasAnalyzed] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isLoadingRecord, setIsLoadingRecord] = useState(false);
@@ -833,47 +832,6 @@ export default function SleepPage() {
 
   const hours = Array.from({ length: 24 }, (_, i) => i);
   const minutes = Array.from({ length: 60 }, (_, i) => i);
-
-  const getIntensityBadgeStyle = (intensity) => {
-    switch (intensity) {
-      case "매우 낮음":
-        return {
-          background: colors.bg,
-          color: colors.sub,
-          border: `1px solid ${colors.border}`,
-        };
-      case "낮음":
-        return {
-          background: colors.primaryLight,
-          color: colors.primary,
-          border: `1px solid ${colors.border}`,
-        };
-      case "중간":
-        return {
-          background: colors.successLight,
-          color: colors.success,
-          border: `1px solid ${colors.border}`,
-        };
-      case "중간 이상":
-        return {
-          background: colors.warningLight,
-          color: colors.warning,
-          border: `1px solid ${colors.border}`,
-        };
-      case "높음":
-        return {
-          background: colors.dangerLight,
-          color: colors.danger,
-          border: `1px solid ${colors.border}`,
-        };
-      default:
-        return {
-          background: colors.aiTagLight,
-          color: colors.aiTag,
-          border: `1px solid ${colors.border}`,
-        };
-    }
-  };
 
   const getWeekRangeLabel = (dateString) => {
     const baseDate = parseLocalDate(dateString);
@@ -1109,7 +1067,6 @@ export default function SleepPage() {
     try {
       setHasAnalyzed(true);
       setIsAnalyzing(true);
-      setAiCoachData(null);
       setAiCoachComment("");
 
       await handleSaveRecord();
@@ -1130,9 +1087,7 @@ export default function SleepPage() {
 
       if (data.success) {
         setAiCoachComment(data.coachComment || "");
-        setAiCoachData(data.coachData || null);
       } else {
-        setAiCoachData(null);
         setAiCoachComment(
           "현재 AI API 사용이 불가능해서 기본 분석 결과를 보여드려요.\n\n" +
             localCoachComment,
@@ -1140,7 +1095,6 @@ export default function SleepPage() {
       }
     } catch (error) {
       console.error(error);
-      setAiCoachData(null);
       setAiCoachComment(
         "현재 AI API 연결이 불가능해서 기본 분석 결과를 보여드려요.\n\n" +
           localCoachComment,
@@ -1432,96 +1386,13 @@ export default function SleepPage() {
                   <div className="sleep-ai-loading">
                     AI 코치가 오늘의 수면 데이터를 분석하고 있어요...
                   </div>
-                ) : aiCoachData ? (
-                  <div className="sleep-ai-section-list">
-                    <div className="sleep-ai-section">
-                      <div className="sleep-ai-section-label">
-                        오늘 상태 요약
-                      </div>
-                      <div className="sleep-ai-summary">
-                        {aiCoachData.summary}
-                      </div>
-                    </div>
-
-                    <div className="sleep-ai-section">
-                      <div className="sleep-ai-section-label mb8">
-                        추천 운동 강도
-                      </div>
-                      <span
-                        className="sleep-ai-badge"
-                        style={getIntensityBadgeStyle(
-                          aiCoachData.exercise_intensity,
-                        )}
-                      >
-                        {aiCoachData.exercise_intensity}
-                      </span>
-                    </div>
-
-                    <div className="sleep-ai-section">
-                      <div className="sleep-ai-section-label mb8">
-                        추천 운동
-                      </div>
-
-                      <div className="sleep-ai-item-list">
-                        {aiCoachData.recommended_workout?.length ? (
-                          aiCoachData.recommended_workout.map((item, index) => (
-                            <div key={index} className="sleep-ai-item">
-                              <span>🏃</span>
-                              <span className="sleep-ai-item-text">{item}</span>
-                            </div>
-                          ))
-                        ) : (
-                          <div className="sleep-ai-empty">추천 운동이 없어요.</div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="sleep-ai-section">
-                      <div className="sleep-ai-section-label mb8">
-                        피해야 할 운동
-                      </div>
-
-                      <div className="sleep-ai-item-list">
-                        {aiCoachData.avoid_workout?.length ? (
-                          aiCoachData.avoid_workout.map((item, index) => (
-                            <div key={index} className="sleep-ai-item">
-                              <span>⚠️</span>
-                              <span className="sleep-ai-item-text">{item}</span>
-                            </div>
-                          ))
-                        ) : (
-                          <div className="sleep-ai-empty">
-                            특별히 제한할 운동은 없어요.
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="sleep-ai-section">
-                      <div className="sleep-ai-section-label">수면 피드백</div>
-                      <div>{aiCoachData.sleep_feedback}</div>
-                    </div>
-
-                    <div className="sleep-ai-section">
-                      <div className="sleep-ai-section-label">코치 한마디</div>
-                      <div>{aiCoachData.coach_message}</div>
-                    </div>
-
-                    <div className="sleep-ai-section">
-                      <div className="sleep-ai-section-label">오늘 실천할 것</div>
-                      <div>{aiCoachData.today_action}</div>
-                    </div>
-
-                    {aiCoachData.warning_note ? (
-                      <div className="sleep-ai-section">
-                        <div className="sleep-ai-section-label">주의</div>
-                        <div>{aiCoachData.warning_note}</div>
-                      </div>
-                    ) : null}
-                  </div>
-                ) : (
+                ) : aiCoachComment ? (
                   <div className="sleep-preserve-linebreaks">
                     {aiCoachComment}
+                  </div>
+                ) : (
+                  <div className="sleep-ai-placeholder">
+                    분석 결과가 없습니다.
                   </div>
                 )}
               </div>

@@ -413,6 +413,12 @@
   padding: 0 12px;
 }
 
+.sleep-preserve-linebreaks {
+  white-space: pre-wrap;
+  line-height: 2;
+  font-size: 15px;
+}
+
 .sleep-ai-section-list {
   display: flex;
   flex-direction: column;
@@ -475,10 +481,6 @@
 
 .sleep-ai-empty {
   color: var(--sleep-sub);
-}
-
-.sleep-preserve-linebreaks {
-  white-space: pre-line;
 }
 
 .sleep-star-rating {

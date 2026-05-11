@@ -1,9 +1,11 @@
+import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './IntroPage.css';
 
 function IntroPage() {
   const navigate = useNavigate();
   const signupPath = '/login?mode=signup';
+  const revealRefs = useRef([]);
 
   const features = [
     {
@@ -41,6 +43,41 @@ function IntroPage() {
     { label: '평균 수면', value: '7.4 h' },
   ];
 
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('show');
+          } else {
+            entry.target.classList.remove('show');
+          }
+        });
+      },
+      {
+        threshold: 0.18,
+      }
+    );
+
+    const elements = revealRefs.current;
+
+    elements.forEach((el) => {
+      if (el) observer.observe(el);
+    });
+
+    return () => {
+      elements.forEach((el) => {
+        if (el) observer.unobserve(el);
+      });
+    };
+  }, []);
+
+  const setRevealRef = (el) => {
+    if (el && !revealRefs.current.includes(el)) {
+      revealRefs.current.push(el);
+    }
+  };
+
   return (
     <div className="intro-page">
       <header className="intro-header">
@@ -76,7 +113,10 @@ function IntroPage() {
       <main>
         <section className="intro-hero-section">
           <div className="intro-hero-overlay">
-            <div className="intro-hero-content">
+            <div
+              ref={setRevealRef}
+              className="intro-hero-content scroll-reveal"
+            >
               <h1 className="intro-hero-title">
                 기록하고,
                 <br />
@@ -113,7 +153,10 @@ function IntroPage() {
 
         <section className="intro-section intro-section-dark">
           <div className="intro-container">
-            <div className="intro-section-heading">
+            <div
+              ref={setRevealRef}
+              className="intro-section-heading scroll-reveal"
+            >
               <p className="intro-section-label">핵심 기능</p>
               <h2>건강 기록의 기본 데이터를 더 쉽게 관리합니다</h2>
               <p>
@@ -123,8 +166,13 @@ function IntroPage() {
             </div>
 
             <div className="intro-feature-grid">
-              {features.map((feature) => (
-                <div key={feature.title} className="intro-feature-card">
+              {features.map((feature, index) => (
+                <div
+                  key={feature.title}
+                  ref={setRevealRef}
+                  className="intro-feature-card scroll-reveal"
+                  style={{ transitionDelay: `${index * 0.12}s` }}
+                >
                   <h3>{feature.title}</h3>
                   <p>{feature.desc}</p>
                 </div>
@@ -136,7 +184,10 @@ function IntroPage() {
         <section className="intro-section intro-section-deep">
           <div className="intro-container">
             <div className="intro-two-column">
-              <div className="intro-left-copy">
+              <div
+                ref={setRevealRef}
+                className="intro-left-copy scroll-reveal"
+              >
                 <p className="intro-section-label">AI 코치</p>
                 <h2>
                   단순 기록 앱이 아니라,
@@ -150,8 +201,13 @@ function IntroPage() {
               </div>
 
               <div className="intro-coach-list">
-                {coachItems.map((item) => (
-                  <div key={item.title} className="intro-coach-item">
+                {coachItems.map((item, index) => (
+                  <div
+                    key={item.title}
+                    ref={setRevealRef}
+                    className="intro-coach-item scroll-reveal"
+                    style={{ transitionDelay: `${index * 0.12}s` }}
+                  >
                     <h3>{item.title}</h3>
                     <p>{item.desc}</p>
                   </div>
@@ -163,7 +219,10 @@ function IntroPage() {
 
         <section className="intro-section intro-section-dark">
           <div className="intro-container">
-            <div className="intro-section-heading">
+            <div
+              ref={setRevealRef}
+              className="intro-section-heading scroll-reveal"
+            >
               <p className="intro-section-label">AI 리포트 미리보기</p>
               <h2>기록은 쌓이고, 인사이트는 더 선명해집니다</h2>
               <p>
@@ -172,7 +231,10 @@ function IntroPage() {
               </p>
             </div>
 
-            <div className="intro-report-card">
+            <div
+              ref={setRevealRef}
+              className="intro-report-card scroll-reveal"
+            >
               <div className="intro-report-header">
                 <div>
                   <p className="intro-report-label">오늘의 AI 코치 리포트</p>
@@ -201,7 +263,10 @@ function IntroPage() {
 
         <section className="intro-section intro-final-section">
           <div className="intro-container">
-            <div className="intro-final-card">
+            <div
+              ref={setRevealRef}
+              className="intro-final-card scroll-reveal"
+            >
               <p className="intro-final-label">지금 시작하기</p>
 
               <h2>

@@ -213,21 +213,37 @@ def sleep_coach():
         recommended_workout = result.get("recommended_workout", [])
         avoid_workout = result.get("avoid_workout", [])
 
-        recommended_text = "\n- " + "\n- ".join(recommended_workout) if recommended_workout else "\n- 없음"
-        avoid_text = "\n- " + "\n- ".join(avoid_workout) if avoid_workout else "\n- 없음"
-
-        coach_comment = (
-            f"오늘 상태 요약: {result.get('summary', '')}\n\n"
-            f"추천 운동 강도: {result.get('exercise_intensity', '')}\n\n"
-            f"추천 운동:{recommended_text}\n\n"
-            f"피해야 할 운동:{avoid_text}\n\n"
-            f"수면 피드백:\n{result.get('sleep_feedback', '')}\n\n"
-            f"코치 한마디:\n{result.get('coach_message', '')}\n\n"
-            f"오늘 실천할 것:\n{result.get('today_action', '')}"
+        recommended_joined = (
+            ", ".join(recommended_workout)
+            if recommended_workout
+            else "가벼운 회복 운동"
+        )
+        avoid_joined = (
+            ", ".join(avoid_workout)
+            if avoid_workout
+            else "특별히 무리한 운동만 아니면 괜찮아요"
         )
 
-        if result.get("warning_note"):
-            coach_comment += f"\n\n주의:\n{result['warning_note']}"
+        summary = result.get("summary", "")
+        sleep_feedback = result.get("sleep_feedback", "")
+        exercise_intensity = result.get("exercise_intensity", "")
+        coach_message = result.get("coach_message", "")
+        today_action = result.get("today_action", "")
+        warning_note = result.get("warning_note", "")
+
+        coach_comment = (
+            f"오늘 상태를 보면 {summary}\n"
+            f"{sleep_feedback}\n\n"
+
+            f"오늘 운동은 '{exercise_intensity}' 강도로 가볍게 진행하세요.\n"
+            f"{today_action}\n\n"
+
+            f"{coach_message}\n"
+            f"무리해서 퍼포먼스를 내기보다는 몸 상태를 먼저 끌어올리는 데 집중하면 좋겠습니다."
+        )
+
+        if warning_note:
+            coach_comment += f" 그리고 {warning_note}"
 
         return jsonify({
             "success": True,
