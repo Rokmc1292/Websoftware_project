@@ -1,11 +1,13 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getMemberCount } from '../../api/introApi.js';
 import './IntroPage.css';
 
 function IntroPage() {
   const navigate = useNavigate();
   const signupPath = '/login?mode=signup';
   const revealRefs = useRef([]);
+  const [memberCount, setMemberCount] = useState(null);
 
   const features = [
     {
@@ -71,6 +73,33 @@ function IntroPage() {
       });
     };
   }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadMemberCount = async () => {
+      try {
+        const data = await getMemberCount();
+        if (!isMounted) return;
+
+        if (data?.success && Number.isFinite(data.member_count)) {
+          setMemberCount(data.member_count);
+        }
+      } catch (error) {
+        if (!isMounted) return;
+        setMemberCount(null);
+      }
+    };
+
+    loadMemberCount();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const memberCountText =
+    memberCount === null ? '많은 회원이' : `${memberCount.toLocaleString('ko-KR')}명이`;
 
   const setRevealRef = (el) => {
     if (el && !revealRefs.current.includes(el)) {
@@ -147,6 +176,10 @@ function IntroPage() {
                   로그인
                 </button>
               </div>
+
+              <p className="intro-hero-member-counter">
+                지금도 <strong>{memberCountText}</strong> 이용 중
+              </p>
             </div>
           </div>
         </section>
@@ -297,6 +330,10 @@ function IntroPage() {
                   로그인
                 </button>
               </div>
+
+              <p className="intro-member-counter">
+                지금도 <strong>{memberCountText}</strong> Hill과 함께하고 있어요.
+              </p>
             </div>
           </div>
         </section>

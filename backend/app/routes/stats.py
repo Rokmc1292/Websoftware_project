@@ -32,6 +32,7 @@ from .. import db
 from ..models.workout import WorkoutSession  # 운동 세션 모델
 from ..models.diet import DietEntry, DietItem  # 식단 기록 모델 (DietItem: 칼로리 합산용)
 from ..models.sleep_record import SleepRecord  # 수면 기록 모델
+from ..models.user import User
 
 # ─────────────────────────────────────────────
 # 블루프린트 생성
@@ -49,6 +50,27 @@ def _get_current_user_id():
     if identity is None:
         raise ValueError('JWT identity is missing')
     return int(identity)
+
+
+@stats_bp.route('/public/member-count', methods=['GET'])
+def get_public_member_count():
+    """
+    랜딩 페이지 공개 통계: 전체 회원 수 조회
+    로그인 없이 접근 가능
+    """
+    try:
+        member_count = db.session.query(func.count(User.id)).scalar()
+    except Exception as e:
+        print(f'[stats/public/member-count] 회원 수 조회 오류: {e}')
+        return jsonify({
+            'success': False,
+            'message': '회원 수를 불러오지 못했습니다.'
+        }), 500
+
+    return jsonify({
+        'success': True,
+        'member_count': int(member_count or 0),
+    }), 200
 
 
 # =============================================================================

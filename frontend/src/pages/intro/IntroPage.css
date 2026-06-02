@@ -198,6 +198,17 @@ body {
   flex-wrap: wrap;
 }
 
+.intro-hero-member-counter {
+  margin: 12px 0 0;
+  font-size: 0.92rem;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.intro-hero-member-counter strong {
+  color: #ffffff;
+}
+
 .intro-primary-btn {
   border: none;
   border-radius: 10px;
@@ -436,6 +447,7 @@ body {
   justify-content: center;
   gap: 12px;
   flex-wrap: wrap;
+  margin-bottom: 18px;
 }
 
 .intro-final-primary {
@@ -458,6 +470,17 @@ body {
   font-size: 0.98rem;
   font-weight: 600;
   cursor: pointer;
+}
+
+.intro-member-counter {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.94);
+}
+
+.intro-member-counter strong {
+  color: #ffffff;
 }
 
 /* 반응형 */
