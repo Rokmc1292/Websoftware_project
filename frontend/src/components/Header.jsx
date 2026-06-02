@@ -1,5 +1,5 @@
 // Header.jsx — 로그인 후 모든 페이지 상단에 고정으로 표시되는 헤더 바 컴포넌트
-// 로고 / 탭 네비게이션 / 사용자 아바타(로그아웃) 세 영역으로 구성됨
+// 로고 / 탭 네비게이션 / 사용자 아바타(로그아웃) 및 사이드바 제어 세 영역으로 구성됨
 
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -25,7 +25,8 @@ const TABS = [
 ];
 
 // Header 컴포넌트 — 헤더 바 전체를 담당하는 함수형 컴포넌트
-function Header() {
+// 💡 AppLayout으로부터 상태와 토글 함수를 매개변수(Props)로 받아옵니다.
+function Header({ isSidebarVisible, toggleSidebars }) {
   // navigate : 특정 경로로 이동시키는 함수
   const navigate = useNavigate();
 
@@ -178,7 +179,7 @@ function Header() {
           })}
         </nav>
 
-        {/* ── 오른쪽: 테마 토글 + 계정 메뉴 ── */}
+        {/* ── 오른쪽: 테마 토글 + 계정 메뉴 + 사이드바 토글 ── */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
 
           {/* 테마 토글 버튼 */}
@@ -294,6 +295,31 @@ function Header() {
             ) : null}
           </div>
 
+          {/* 💡 계정 메뉴 오른쪽에 추가된 동일한 모양의 레이아웃 토글 버튼 */}
+          <button
+            type="button"
+            onClick={toggleSidebars}
+            title={isSidebarVisible ? '사이드바 숨기기' : '사이드바 보이기'}
+            style={{
+              width: 34,
+              height: 34,
+              background: isSidebarVisible ? colors.primaryLight : 'transparent', // 켜진 상태 구분을 위해 색상 변화 부여
+              border: `1px solid ${colors.border}`,
+              borderRadius: '50%', // 계정 아바타(👤) 버튼과 완벽하게 똑같은 원형 셰이프
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 15,
+              cursor: 'pointer',
+              userSelect: 'none',
+              transition: 'all 0.15s ease',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.75')}
+            onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
+          >
+            {isSidebarVisible ? '📺' : '❌'}
+          </button>
+
         </div>
 
       </div>
@@ -301,4 +327,4 @@ function Header() {
   );
 }
 
-export default Header; // App.jsx·AppLayout.jsx 등에서 import할 수 있도록 내보냄
+export default Header;
