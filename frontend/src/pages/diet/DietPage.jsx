@@ -167,43 +167,62 @@ function FoodCard({diet, isFavorite, isExpanded, onToggleExpand, onToggleFavorit
     const detailText = diet.items.map((item) => item.name).join(' · ');
     return (
         <div className={`foodCard${isExpanded ? ' isExpanded' : ''}`} onClick={() => onToggleExpand(diet.id)}>
-            <div className="foodCardHeader">
-                <div className="foodCardTitle">{diet.title}</div>
-                <div className="foodCardNutrients">
-                    <div className="nutrientTag nutrientTagKcal">{diet.calories} kcal</div>
-                    {FOOD_TAGS.map((tag) => <div key={tag.key}
-                                                 className={`nutrientTag ${tag.className}`}>{tag.label} {diet[tag.key]}g</div>)}
-                </div>
+            {/* Title - top left */}
+            <div className="foodCardTitle">{diet.title}</div>
+
+            {/* Nutrition tags - top right */}
+            <div className="foodCardNutrients">
+                <div className="nutrientTag nutrientTagKcal">{diet.calories} kcal</div>
+                {FOOD_TAGS.map((tag) => (
+                    <div key={tag.key} className={`nutrientTag ${tag.className}`}>
+                        {tag.label} {diet[tag.key]}g
+                    </div>
+                ))}
             </div>
-            <div className="foodCardFooter">
-                <p className="foodCardDetail">{detailText}</p>
-                <div className="foodCardActionGroup">
-                    <button type="button" className="foodCardActionButton" onClick={(e) => {
+
+            {/* Image - middle left, aligned with title */}
+            <div className="foodCardImageWrapper">
+                {diet.image && (
+                    <div className="foodCardImage">
+                        {typeof diet.image === 'string' && diet.image.startsWith('data:') ? (
+                            <img src={diet.image} alt={diet.title} className="foodCardImageElement" />
+                        ) : (
+                            <div className="foodCardImagePlaceholder">{diet.image}</div>
+                        )}
+                    </div>
+                )}
+            </div>
+
+            {/* Food list - middle center */}
+            <p className="foodCardDetail">{detailText}</p>
+
+            {/* Action buttons - middle right */}
+            <div className="foodCardActionGroup">
+                <button type="button" className="foodCardActionButton" onClick={(e) => {
+                    e.stopPropagation();
+                    onEdit(diet);
+                }}>수정
+                </button>
+                <button type="button" className="foodCardActionButton foodCardActionButtonDanger" onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(diet.id);
+                }}>삭제
+                </button>
+                <button
+                    type="button"
+                    className={`foodCardFavoriteButton${isFavorite ? ' isActive' : ''}`}
+                    aria-label={`${diet.title} 즐겨찾기`}
+                    aria-pressed={isFavorite}
+                    onClick={(e) => {
                         e.stopPropagation();
-                        onEdit(diet);
-                    }}>수정
-                    </button>
-                    <button type="button" className="foodCardActionButton foodCardActionButtonDanger" onClick={(e) => {
-                        e.stopPropagation();
-                        onDelete(diet.id);
-                    }}>삭제
-                    </button>
-                    <button
-                        type="button"
-                        className={`foodCardFavoriteButton${isFavorite ? ' isActive' : ''}`}
-                        aria-label={`${diet.title} 즐겨찾기`}
-                        aria-pressed={isFavorite}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onToggleFavorite(diet.id);
-                        }}
-                    >
-                        <svg className="foodCardFavoriteIcon" viewBox="0 0 24 24" aria-hidden="true">
-                            <path
-                                d="M12 3.2l2.65 5.36 5.92.86-4.28 4.17 1.01 5.9L12 16.7l-5.3 2.79 1.01-5.9L3.43 9.42l5.92-.86L12 3.2z"/>
-                        </svg>
-                    </button>
-                </div>
+                        onToggleFavorite(diet.id);
+                    }}
+                >
+                    <svg className="foodCardFavoriteIcon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path
+                            d="M12 3.2l2.65 5.36 5.92.86-4.28 4.17 1.01 5.9L12 16.7l-5.3 2.79 1.01-5.9L3.43 9.42l5.92-.86L12 3.2z"/>
+                    </svg>
+                </button>
             </div>
             {isExpanded ? (
                 <div className="foodCardExpanded">
@@ -394,7 +413,7 @@ function DietPage() {
         return next;
     };
 
-    const appendDiet = async (title, items) => {
+    const appendDiet = async (title, items, imageData = null) => {
         const payload = {
             title: title || makeDefaultDietTitle(),
             recorded_date: selectedDate,
@@ -407,6 +426,10 @@ function DietPage() {
                 sort_order: index + 1,
             })),
         };
+        // Add image_data if provided (from AI analysis)
+        if (imageData) {
+            payload.image_data = imageData;
+        }
         const response = await createDietEntry(payload);
         if (response.entry) upsertEntry(response.entry);
     };
@@ -688,7 +711,7 @@ function DietPage() {
             })));
             setAiPreview((prev) => ({
                 ...prev,
-                imagePreview: selectedImagePreview,
+                imagePreview: response?.image_data || selectedImagePreview,
                 items: analyzedItems,
             }));
             closeUploadModal();
@@ -730,7 +753,12 @@ function DietPage() {
                     if (response.entry) upsertEntry(response.entry);
                 }
             } else {
-                await appendDiet(aiSaveForm.title.trim() || makeDefaultDietTitle(), aiPreview.items);
+                // Pass aiPreview.imagePreview as image_data for new diet entry
+                await appendDiet(
+                    aiSaveForm.title.trim() || makeDefaultDietTitle(),
+                    aiPreview.items,
+                    aiPreview.imagePreview || null
+                );
             }
             setAiPreview({...INITIAL_AI_PREVIEW, items: []});
             closeAiSaveModal();
@@ -784,7 +812,9 @@ function DietPage() {
     };
     const handleAddFavoriteDiet = async (diet) => {
         try {
-            await appendDiet(favoritesTitle.trim() || makeDefaultDietTitle(), diet.items);
+            // Only pass image if it's a data URL (not an emoji placeholder)
+            const imageData = diet.image && typeof diet.image === 'string' && diet.image.startsWith('data:') ? diet.image : null;
+            await appendDiet(favoritesTitle.trim() || makeDefaultDietTitle(), diet.items, imageData);
             closeFavoritesModal();
         } catch (error) {
             console.error('즐겨찾기 식단 추가 실패:', error);

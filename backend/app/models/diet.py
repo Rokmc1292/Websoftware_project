@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.dialects.mysql import DECIMAL, INTEGER, SMALLINT
 from .. import db
+import base64
 
 KST = timezone(timedelta(hours=9))
 
@@ -17,6 +18,8 @@ class DietEntry(db.Model):
     title = db.Column(db.String(100), nullable=False)
     recorded_at = db.Column(db.DateTime, nullable=False, default=now_kst_naive)
     is_favorite = db.Column(db.Boolean, nullable=False, default=False)
+    image_blob = db.Column(db.LargeBinary, nullable=True)
+    image_type = db.Column(db.String(50), nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=now_kst_naive)
     updated_at = db.Column(db.DateTime, nullable=False, default=now_kst_naive, onupdate=now_kst_naive)
 
@@ -48,7 +51,15 @@ class DietEntry(db.Model):
             'recorded_at': self.recorded_at.isoformat() if self.recorded_at else None,
             'is_favorite': bool(self.is_favorite),
             'items': [item.to_dict() for item in self.items],
+            'image': None,
         }
+        # If image_blob exists, encode as data URL for frontend display
+        if self.image_blob and self.image_type:
+            image_base64 = base64.b64encode(self.image_blob).decode('utf-8')
+            data['image'] = f"data:{self.image_type};base64,{image_base64}"
+        # If no image (direct input), use a default emoji icon marker
+        else:
+            data['image'] = '🍽️'
         data.update(self.totals())
         return data
 

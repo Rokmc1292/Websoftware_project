@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from sqlalchemy import func
-
+import base64
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 
@@ -173,12 +173,38 @@ def create_entry():
     if not parsed_items:
         return jsonify({'message': '최소 1개 이상의 음식 item이 필요합니다.'}), 400
 
+    # Handle image data: expect base64-encoded data URL (e.g., from AI analysis)
+    image_blob = None
+    image_type = None
+    image_data = data.get('image_data')
+    if image_data and isinstance(image_data, str):
+        try:
+            # If it's a data URL, extract the base64 part and decode it
+            if image_data.startswith('data:'):
+                # Format: "data:image/jpeg;base64,/9j/4AAQSkZJRg..."
+                parts = image_data.split(',', 1)
+                if len(parts) == 2:
+                    meta, b64_str = parts
+                    # Extract MIME type from meta (e.g., "data:image/jpeg;base64" -> "image/jpeg")
+                    if 'image/' in meta:
+                        image_type = meta.split('image/')[1].split(';')[0]
+                        image_type = 'image/' + image_type
+                    image_blob = base64.b64decode(b64_str)
+            else:
+                # Assume it's already base64-encoded binary data
+                image_blob = base64.b64decode(image_data)
+                image_type = data.get('image_type', 'image/jpeg')
+        except Exception as e:
+            print(f'Warning: Failed to decode image data: {str(e)}')
+
     try:
         entry = DietEntry(
             user_id=user_id,
             title=title,
             recorded_at=recorded_at,
             is_favorite=bool(data.get('is_favorite', False)),
+            image_blob=image_blob,
+            image_type=image_type,
         )
         _upsert_items(entry, parsed_items)
         db.session.add(entry)
@@ -279,7 +305,14 @@ def analyze_image():
             mime_type=(file.mimetype or 'image/jpeg'),
             filename=(file.filename or 'upload.jpg'),
         )
-        return jsonify({'message': 'AI 이미지 분석이 완료되었습니다.', 'items': result.get('items', [])}), 200
+        # Encode image as base64 data URL for frontend storage
+        image_base64 = base64.b64encode(image_bytes).decode('utf-8')
+        image_data_url = f"data:{file.mimetype or 'image/jpeg'};base64,{image_base64}"
+        return jsonify({
+            'message': 'AI 이미지 분석이 완료되었습니다.',
+            'items': result.get('items', []),
+            'image_data': image_data_url
+        }), 200
     except ValueError as error:
         return jsonify({'message': str(error)}), 400
     except Exception as error:
