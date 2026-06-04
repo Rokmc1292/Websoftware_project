@@ -1125,11 +1125,6 @@ export default function SleepPage() {
           <span className="sleep-page-badge">✦ AI 분석 포함</span>
         </div>
 
-        <p className="sleep-page-desc">
-          취침·기상 시간, 수면 만족도, 특이사항 메모, 기상 미션 수행률을
-          바탕으로 오늘의 수면 상태를 종합 분석합니다.
-        </p>
-
         <div className="sleep-page-layout">
           <div className="sleep-page-left">
             <div className="sleep-card">

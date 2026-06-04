@@ -1,3 +1,8 @@
+.sleep-page,
+.sleep-page-root {
+  background: transparent !important;
+}
+
 .sleep-page {
   --sleep-card-bg: var(--theme-card);
   --sleep-border: var(--theme-border);
@@ -14,6 +19,13 @@
 
 .sleep-page-root {
   min-width: 0;
+}
+
+.sleep-page-layout,
+.sleep-page-left,
+.sleep-page-right,
+.sleep-middle-grid {
+  background: transparent;
 }
 
 .sleep-page-header {

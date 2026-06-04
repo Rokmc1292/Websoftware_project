@@ -1,12 +1,5 @@
-// GymSidebar.jsx — 오른쪽 주변 헬스장 지도 중심 사이드바 (닫기 버튼 우측 상단 구석 고정 버전)
-// - 닫기 버튼(X)이 정보창 오른쪽 중간 애매한 위치에 걸치던 현상을 우측 상단 구석 고정(absolute)으로 완벽 해결
-// - 구글 Places API를 이용해 사용자 내 위치 기반 실제 헬스장 실시간 검색 및 마커 매핑
-// - 이름/평점 클릭 시 구글 지도 상세 페이지 연동 유지
-// - [반응형 동기화 완료] AdSidebar 및 AppLayout의 통합 기준(1200px)과 완벽하게 동기화되어 유연하게 작동
+import { useEffect, useRef, useState } from 'react';
 
-import { useState, useEffect, useRef } from 'react';
-
-// 💡 발급받은 구글 맵 API 키를 여기에 입력하세요.
 const GOOGLE_MAPS_API_KEY = 'AIzaSyBGT3DMGsR6UGf8YEvpeQ16VmdoEaHR-Zg';
 
 function GymSidebar() {
