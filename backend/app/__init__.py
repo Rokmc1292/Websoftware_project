@@ -43,7 +43,7 @@ def create_app():
     # CORS 설정 — React 개발 서버(포트 5173)에서 오는 요청을 허용
     # resources : CORS를 적용할 URL 패턴 (r'/api/*' = /api/로 시작하는 모든 경로)
     # origins : 허용할 출처(도메인:포트) — 개발 환경에서는 React 개발 서버만 허용
-    CORS(app, resources={r'/api/*': {'origins': 'http://localhost:5173'}})
+    CORS(app, resources={r'/api/*': {'origins': ['http://localhost:5173', 'https://nsns.o-r.kr']}})
 
     # ── 블루프린트 등록 ──
     # 블루프린트(Blueprint) : URL 경로 그룹을 모듈화하는 Flask 기능
