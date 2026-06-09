@@ -106,6 +106,7 @@ function Header({ isSidebarVisible, toggleSidebars }) {
     // 헤더 전체 감싸는 컨테이너
     // position: sticky + top: 0 으로 스크롤해도 화면 상단에 고정됨
     <header
+      className="site-header"
       style={{
         background: colors.card, // 흰 배경
         borderBottom: `1px solid ${colors.border}`, // 하단에 연한 회색 구분선
@@ -117,6 +118,7 @@ function Header({ isSidebarVisible, toggleSidebars }) {
     >
       {/* 헤더 내용 영역 — 최대 너비 960px, 가운데 정렬, 세로 중앙 정렬 */}
       <div
+        className="site-header-inner"
         style={{
           maxWidth: 960, // 너무 넓어지지 않도록 최대 너비 제한
           margin: "0 auto", // 좌우 auto 마진으로 가운데 정렬
@@ -128,6 +130,7 @@ function Header({ isSidebarVisible, toggleSidebars }) {
       >
         {/* ── 왼쪽: 로고 ── */}
         <div
+          className="site-header-logo"
           onClick={handleLogoClick} // 클릭 시 운동루틴 페이지로 이동
           style={{
             display: "flex", // 이미지와 텍스트를 가로로 나란히 배치
@@ -156,6 +159,7 @@ function Header({ isSidebarVisible, toggleSidebars }) {
 
         {/* ── 가운데: 탭 네비게이션 ── */}
         <nav
+          className="site-header-nav"
           style={{
             display: "flex", // 탭 버튼들을 가로로 나란히 배치
             gap: 4, // 탭 버튼 사이 간격 4px
@@ -169,6 +173,7 @@ function Header({ isSidebarVisible, toggleSidebars }) {
 
             return (
               <button
+                className="site-header-tab"
                 key={tab.path} // React가 목록을 효율적으로 업데이트하기 위한 고유 키
                 onClick={() => navigate(tab.path)} // 클릭 시 해당 경로로 이동
                 style={{
@@ -192,7 +197,7 @@ function Header({ isSidebarVisible, toggleSidebars }) {
         </nav>
 
         {/* ── 오른쪽: 테마 토글 + 계정 메뉴 + 사이드바 토글 ── */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div className="site-header-actions" style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {/* 테마 토글 버튼 */}
           <button
             onClick={handleThemeToggle}
@@ -220,7 +225,7 @@ function Header({ isSidebarVisible, toggleSidebars }) {
           </button>
 
           {/* 계정 메뉴 */}
-          <div ref={accountMenuRef} style={{ position: "relative" }}>
+          <div className="site-header-account" ref={accountMenuRef} style={{ position: "relative" }}>
             <button
               type="button"
               onClick={() => setIsAccountMenuOpen((prev) => !prev)}
@@ -310,6 +315,7 @@ function Header({ isSidebarVisible, toggleSidebars }) {
 
           {/* 💡 계정 메뉴 오른쪽에 추가된 동일한 모양의 레이아웃 토글 버튼 */}
           <button
+            className="site-header-sidebar-toggle"
             type="button"
             onClick={toggleSidebars}
             title={isSidebarVisible ? "사이드바 숨기기" : "사이드바 보이기"}
@@ -336,6 +342,84 @@ function Header({ isSidebarVisible, toggleSidebars }) {
           </button>
         </div>
       </div>
+      <style>{`
+        @media (max-width: 720px) {
+          .site-header {
+            padding: 8px 12px 10px !important;
+          }
+
+          .site-header-inner {
+            width: 100% !important;
+            height: auto !important;
+            min-height: 56px;
+            display: grid !important;
+            grid-template-columns: auto auto;
+            grid-template-areas:
+              "brand actions"
+              "nav nav";
+            row-gap: 8px;
+            column-gap: 10px;
+          }
+
+          .site-header-logo {
+            grid-area: brand;
+            min-width: 0;
+          }
+
+          .site-header-actions {
+            grid-area: actions;
+            justify-content: flex-end;
+            min-width: 0;
+          }
+
+          .site-header-nav {
+            grid-area: nav;
+            width: 100%;
+            min-width: 0;
+            overflow-x: auto;
+            overflow-y: hidden;
+            padding-bottom: 2px;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+          }
+
+          .site-header-nav::-webkit-scrollbar {
+            display: none;
+          }
+
+          .site-header-tab {
+            flex: 0 0 auto;
+            padding: 8px 12px !important;
+            white-space: nowrap;
+          }
+
+          .site-header-sidebar-toggle {
+            display: none !important;
+          }
+        }
+
+        @media (max-width: 380px) {
+          .site-header {
+            padding-left: 10px !important;
+            padding-right: 10px !important;
+          }
+
+          .site-header-actions {
+            gap: 6px !important;
+          }
+
+          .site-header-actions > button,
+          .site-header-account > button {
+            width: 32px !important;
+            height: 32px !important;
+          }
+
+          .site-header-tab {
+            padding: 7px 10px !important;
+            font-size: 12px !important;
+          }
+        }
+      `}</style>
     </header>
   );
 }

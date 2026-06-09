@@ -547,6 +547,42 @@ body {
   }
 }
 
+@media (max-width: 420px) {
+  .intro-header-inner {
+    padding: 14px;
+    gap: 10px;
+  }
+
+  .intro-logo-subtext {
+    display: none;
+  }
+
+  .intro-header-buttons {
+    gap: 6px;
+  }
+
+  .intro-header-login,
+  .intro-header-signup {
+    font-size: 0.8rem;
+  }
+
+  .intro-header-signup {
+    padding: 0.65rem 0.75rem;
+  }
+
+  .intro-hero-overlay {
+    padding: 108px 14px 56px;
+  }
+
+  .intro-hero-title {
+    font-size: 2.1rem;
+  }
+
+  .intro-hero-subtitle {
+    font-size: 0.95rem;
+  }
+}
+
 .scroll-reveal {
   opacity: 0;
   transform: translateY(30px);

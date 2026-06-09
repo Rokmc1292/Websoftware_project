@@ -892,9 +892,48 @@
 @media (max-width: 800px) {
   .stats-layout {
     flex-direction: column;
+    gap: 14px;
   }
 
   .stats-calendar-col {
     width: 100%;
+    min-width: 0;
+  }
+
+  .stats-weekly-card {
+    padding: 18px;
+  }
+}
+
+@media (max-width: 480px) {
+  .stats-calendar-card,
+  .stats-weekly-card {
+    padding: 12px;
+    border-radius: 12px;
+  }
+
+  .calendar-grid {
+    gap: 2px;
+  }
+
+  .calendar-day {
+    min-width: 0;
+  }
+
+  .calendar-day-number {
+    font-size: 11px;
+  }
+
+  .bar-chart-body {
+    gap: 4px;
+  }
+
+  .bar-track {
+    height: 92px;
+  }
+
+  .bar-value-label,
+  .bar-day-label {
+    font-size: 10px;
   }
 }

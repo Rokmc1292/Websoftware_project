@@ -277,7 +277,7 @@ function WorkoutPage() {
         <div>
 
             {/* ── 페이지 헤더 ── */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
                 <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: colors.text }}>
                     운동루틴
                 </h2>
@@ -308,6 +308,7 @@ function WorkoutPage() {
                         fontSize: 13,
                         fontWeight: 600,
                         cursor: 'pointer',
+                        flex: '0 1 auto',
                     }}
                 >
                     ★ 즐겨찾기
@@ -329,6 +330,7 @@ function WorkoutPage() {
                         fontSize: 13,
                         fontWeight: 600,
                         cursor: 'pointer',
+                        flex: '0 1 auto',
                     }}
                 >
                     {showForm ? '닫기' : '+ 새 운동 기록'}
@@ -376,6 +378,7 @@ function WorkoutPage() {
                     onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1); }}
                     style={{
                         flex: '1 1 180px',
+                        minWidth: 0,
                         padding: '8px 12px',
                         border: `1px solid ${colors.border}`,
                         borderRadius: 8,
@@ -393,6 +396,8 @@ function WorkoutPage() {
                     onChange={e => { setFilterMuscle(e.target.value); setCurrentPage(1); }}
                     style={{
                         padding: '8px 10px',
+                        flex: '1 1 120px',
+                        minWidth: 0,
                         border: `1px solid ${colors.border}`,
                         borderRadius: 8,
                         fontSize: 13,
@@ -414,6 +419,8 @@ function WorkoutPage() {
                     onChange={e => { setFilterMonth(e.target.value); setCurrentPage(1); }}
                     style={{
                         padding: '8px 10px',
+                        flex: '1 1 140px',
+                        minWidth: 0,
                         border: `1px solid ${colors.border}`,
                         borderRadius: 8,
                         fontSize: 13,

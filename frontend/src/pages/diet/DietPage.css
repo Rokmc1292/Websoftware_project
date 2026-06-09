@@ -1055,6 +1055,16 @@
 }
 
 @media (max-width: 560px) {
+    .dietPageContainer {
+        gap: var(--g-md);
+    }
+
+    .dietPageHeader,
+    .nutritionGoalHeader,
+    .aiCoachHeader {
+        flex-wrap: wrap;
+    }
+
     .aiAnalysisGridLarge,
     .aiAnalysisFoodBody,
     .dietFormGrid {
@@ -1138,6 +1148,67 @@
 
     .dietDateFilterForm {
         justify-content: space-between;
+        flex-wrap: wrap;
+    }
+
+    .dietDateFilterInput,
+    .dietDateFilterButton {
+        flex: 1 1 120px;
+    }
+}
+
+@media (max-width: 420px) {
+    .foodCard {
+        grid-template-columns: 1fr;
+    }
+
+    .foodCardTitle,
+    .foodCardActionGroup,
+    .foodCardImageWrapper,
+    .foodCardDetail,
+    .foodCardNutrients,
+    .foodCardExpanded {
+        grid-column: 1;
+    }
+
+    .foodCardTitle {
+        grid-row: 1;
+    }
+
+    .foodCardActionGroup {
+        grid-row: 2;
+        justify-self: start;
+    }
+
+    .foodCardImageWrapper {
+        grid-row: 3;
+    }
+
+    .foodCardDetail {
+        grid-row: 4;
+    }
+
+    .foodCardNutrients {
+        grid-row: 5;
+        justify-content: flex-start;
+    }
+
+    .foodCardExpanded {
+        grid-row: 6;
+    }
+
+    .aiAnalysisFoodActions,
+    .dietUploadActions,
+    .dietItemActionRow,
+    .dietFavoriteItemActions {
+        flex-wrap: wrap;
+    }
+
+    .aiAnalysisActionButton,
+    .dietUploadCancelButton,
+    .dietUploadSubmitButton,
+    .dietUploadSelectButton {
+        flex: 1 1 120px;
     }
 }
 

@@ -769,6 +769,11 @@
 }
 
 @media (max-width: 768px) {
+  .sleep-page-header,
+  .sleep-card-head-between {
+    flex-wrap: wrap;
+  }
+
   .sleep-form-grid {
     grid-template-columns: 1fr;
   }
@@ -776,5 +781,34 @@
   .sleep-record-actions,
   .sleep-memo-footer {
     align-items: stretch;
+  }
+}
+
+@media (max-width: 480px) {
+  .sleep-card {
+    padding: 12px;
+  }
+
+  .sleep-summary-card,
+  .sleep-chart-card,
+  .sleep-goals-card {
+    min-height: 280px;
+  }
+
+  .sleep-radar-wrap {
+    overflow: hidden;
+  }
+
+  .sleep-weekly-bars,
+  .sleep-weekly-days {
+    gap: 8px;
+  }
+
+  .sleep-weekly-bar-label-top {
+    font-size: 10px;
+  }
+
+  .sleep-weekly-day-text {
+    font-size: 11px;
   }
 }

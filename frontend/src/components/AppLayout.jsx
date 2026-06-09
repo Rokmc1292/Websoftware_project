@@ -69,6 +69,7 @@ function AppLayout() {
 
   return (
     <div
+      className="app-shell"
       style={{
         fontFamily:
           "'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif",
@@ -177,6 +178,21 @@ function AppLayout() {
 
           .responsive-main-content {
             max-width: 100% !important;
+          }
+        }
+
+        @media (max-width: 768px) {
+          .app-shell {
+            background-attachment: scroll !important;
+          }
+
+          .app-layout-container {
+            width: 100% !important;
+            padding: 14px 12px 24px !important;
+          }
+
+          .responsive-main-content {
+            width: 100% !important;
           }
         }
       `}</style>

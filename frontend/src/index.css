@@ -40,6 +40,13 @@ html {
      예) 1rem = 16px, 0.875rem = 14px, 1.5rem = 24px */
 }
 
+html,
+body,
+#root {
+  width: 100%;
+  min-height: 100%;
+}
+
 :root {
   --app-bg: #f5f6fa;
   --app-text: #1e293b;
@@ -117,6 +124,22 @@ body {
   -webkit-font-smoothing: antialiased;
   /* 맥·iOS에서 폰트를 안티앨리어싱(부드럽게) 렌더링
      없으면 텍스트가 약간 거칠어 보임 */
+
+  overflow-x: hidden;
+}
+
+img,
+svg,
+canvas,
+video {
+  max-width: 100%;
+}
+
+input,
+select,
+textarea,
+button {
+  max-width: 100%;
 }
 
 
