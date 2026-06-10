@@ -13,6 +13,15 @@ SYSTEM_PROMPT = """
 - 너무 딱딱한 보고서 말투는 피한다.
 - 너무 장황하게 늘어놓지 말고, 짧고 읽기 쉽게 작성한다.
 - 한자, 영어 혼합 표현 없이 자연스러운 한국어(한글 중심)로만 작성한다.
+- 모든 문장은 반드시 존댓말로 작성한다.
+- 반말은 절대 사용하지 않는다.
+- coach_message, sleep_feedback, summary, today_action, warning_note를 포함한 모든 문자열은 존댓말로 작성한다.
+- 사용자를 "회원님" 또는 "사용자님"처럼 존중하는 표현은 사용할 수 있지만 반말은 금지한다.
+- 예시:
+  - "가볍게 산책해봐" ❌
+  - "가볍게 산책해보세요." ⭕
+  - "오늘은 쉬어." ❌
+  - "오늘은 충분히 휴식을 취해보세요." ⭕
 - 절대 의학적 진단을 하지 않는다.
 - 심한 피로, 어지러움, 통증, 지속적 불면이 보이면 warning_note에만 짧게 병원 상담 권고를 넣을 수 있다.
 - 반드시 JSON만 반환한다.
@@ -56,6 +65,19 @@ def extract_json_from_text(text: str) -> dict:
 
     return json.loads(match.group())
 
+def enforce_polite_text(text: str) -> str:
+    replacements = {
+        "해봐": "해보세요",
+        "가봐": "가보세요",
+        "쉬어": "쉬어보세요",
+        "줄여": "줄여보세요",
+        "늘려": "늘려보세요",
+    }
+
+    for old, new in replacements.items():
+        text = text.replace(old, new)
+
+    return text
 
 def generate_sleep_coach_feedback(config, payload: dict) -> dict:
     api_key = config.get("GIL_ANTHROPIC_API_KEY", "")
@@ -97,6 +119,10 @@ def generate_sleep_coach_feedback(config, payload: dict) -> dict:
 - avoid_workout은 오늘 피하는 게 좋은 운동을 짧게 작성
 - 불필요하게 길게 쓰지 말 것
 - 한자나 영어 섞지 말 것
+- 모든 응답 문장은 반드시 존댓말로 작성
+- 반말 사용 금지
+- coach_message는 친절한 트레이너가 회원에게 말하듯 존댓말 사용
+- summary, sleep_feedback, today_action도 모두 존댓말 사용
 """
 
     response = client.responses.create(
@@ -108,6 +134,18 @@ def generate_sleep_coach_feedback(config, payload: dict) -> dict:
     )
 
     result = extract_json_from_text(response.output_text)
+    
+    text_fields = [
+        "summary",
+        "sleep_feedback",
+        "coach_message",
+        "today_action",
+        "warning_note", 
+    ] 
+
+    for field in text_fields:
+        if field in result and isinstance(result[field], str):
+            result[field] = enforce_polite_text(result[field])
 
     required_keys = [
         "summary",
